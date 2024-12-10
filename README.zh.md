@@ -1,3 +1,114 @@
+# js-rpc2 库介绍
+
+`js-rpc2` 是一个轻量级的远程过程调用（RPC）库，旨在简化客户端和服务器之间的通信。该库支持多种数据类型，包括字符串、二进制数据、对象、数组等，并且提供了强大的回调机制，以便在异步操作中实时反馈进度。
+
+## 主要特性
+
+- **简单易用**：通过简单的 API 设计，使得客户端和服务器端的集成变得非常容易。
+- **多种数据类型支持**：支持字符串、二进制数据、对象、数组等多种数据类型。
+- **回调机制**：在异步操作中可以通过回调函数实时反馈进度。
+- **灵活的路由配置**：支持 Koa 框架，可以轻松地将 RPC 路由集成到现有的 Koa 应用中。
+- **跨域支持**：客户端可以通过 HTTP 请求与不同域的服务器进行通信。
+
+## 安装
+
+```sh
+npm i js-rpc2
+```
+
+## 使用示例
+
+### 服务器端
+
+```js
+import { createServer } from 'http'
+import Koa from 'koa'
+import Router from 'koa-router'
+import { createRpcServerKoaRouter } from 'js-rpc2/src/server.js'
+
+const app = new Koa()
+const router = new Router()
+app.use(router.routes())
+app.use(router.allowedMethods())
+createServer(app.callback()).listen(9000)
+
+class RpcApi {
+    /**
+     * @param {string} string 
+     * @param {Uint8Array} buffer 
+     * @param {Object} object 
+     * @param {null} _null 
+     * @param {undefined} _undefined 
+     * @param {object[]} array 
+     * @param {(arg1:string,arg2:number)=>void} callback 
+     */
+    async hello(string, buffer, object, _null, _undefined, array, callback) {
+        for (let i = 0; i < 3; i++) {
+            callback('progress : ', i)
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+        }
+        return [
+            `${typeof string}-${typeof buffer}-${typeof object}-${typeof _null}-${typeof _undefined}-${typeof array}`,
+            new Uint8Array(3),
+            { a: 1, b: 2, c: 3 },
+            1,
+            true,
+            undefined,
+            [1, 2, 3, 4],
+        ]
+    }
+}
+
+const extension = new RpcApi()
+
+createRpcServerKoaRouter({
+    path: '/rpc/abc',
+    router: router,
+    extension: extension,
+})
+```
+
+### 客户端
+
+```js
+import { createRpcClientHttp } from 'js-rpc2/src/client.js'
+
+/** @type{RpcApi} */
+const rpc = createRpcClientHttp({
+    url: `/rpc/abc`,                      // in same site html page
+    url: `http://127.0.0.1:9000/rpc/abc`, // others
+})
+
+let ret = await rpc.hello('123', new Uint8Array(3), { q: 2, w: 3, e: 4 }, null, undefined, [1, 2, 3, 4], (message, num) => {
+    console.info('callback', message, num)
+})
+console.info(ret)
+```
+
+## 输出示例
+
+```sh
+node --test-name-pattern="^basic$" src/lib.test.js
+✔ basic (4.5986ms)
+callback progress :  0
+callback progress :  1
+callback progress :  2
+[
+  'string-object-object-object-undefined-object',
+  Uint8Array(3) [ 0, 0, 0 ],
+  { a: 1, b: 2, c: 3 },
+  1,
+  true,
+  undefined,
+  [ 1, 2, 3, 4 ]
+]
+```
+
+希望 `js-rpc2` 能够帮助你更高效地构建和管理客户端与服务器之间的通信。
+
+
+## example
+```js
 import { test } from 'node:test'
 import { deepStrictEqual, strictEqual } from 'node:assert'
 import { createRpcClientHttp, createRpcClientWebSocket, sleep, Uint8Array_from } from './lib.js'
@@ -6,69 +117,6 @@ import { WebSocketServer } from 'ws'
 import Koa from 'koa'
 import Router from 'koa-router'
 import { createRpcServerKoaRouter, createRpcServerWebSocket } from './server.js'
-
-test('basic', async () => {
-    // node --test-name-pattern="^basic$" src/lib.test.js
-
-    // server
-    const app = new Koa()
-    const router = new Router()
-    app.use(router.routes())
-    app.use(router.allowedMethods())
-    let server = createServer(app.callback()).listen(9000)
-
-    class RpcApi {
-        /**
-         * 
-         * @param {string} string 
-         * @param {Uint8Array} buffer 
-         * @param {Object} object 
-         * @param {null} _null 
-         * @param {undefined} _undefined 
-         * @param {object[]} array 
-         * @param {(arg1:string,arg2:number)=>void} callback 
-         */
-        async hello(string, buffer, object, _null, _undefined, array, callback) {
-            for (let i = 0; i < 3; i++) {
-                callback('progress : ', i)
-                await new Promise((resolve) => setTimeout(resolve, 1000))
-            }
-            return [
-                `${typeof string}-${typeof buffer}-${typeof object}-${typeof _null}-${typeof _undefined}-${typeof array}`,
-                new Uint8Array(3),
-                { a: 1, b: 2, c: 3 },
-                1,
-                true,
-                undefined,
-                [1, 2, 3, 4],
-            ]
-        }
-    }
-
-    const extension = new RpcApi()
-
-    createRpcServerKoaRouter({
-        path: '/rpc/abc',
-        router: router,
-        extension: extension,
-    })
-
-
-    // client
-
-    /** @type{RpcApi} */
-    const rpc = createRpcClientHttp({
-        // url: `/rpc/abc`,                      // in same site html page
-        url: `http://127.0.0.1:9000/rpc/abc`, // others
-    })
-
-    let ret = await rpc.hello('123', new Uint8Array(3), { q: 2, w: 3, e: 4 }, null, undefined, [1, 2, 3, 4], (message, num) => {
-        console.info('callback', message, num)
-    })
-    console.info(ret)
-    server.close()
-
-})
 
 test('测试RPC调用-WebSocket', async () => {
     // node --test-name-pattern="^测试RPC调用-WebSocket$" src/lib.test.js
@@ -265,3 +313,4 @@ export async function runWithAbortController(func) {
         await sleep(1000)
     } finally { ac.abort() }
 }
+```

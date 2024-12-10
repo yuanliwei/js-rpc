@@ -1,4 +1,110 @@
-# rpc
+# js-rpc2 Library Introduction
+
+`js-rpc2` is a lightweight Remote Procedure Call (RPC) library designed to simplify communication between clients and servers. The library supports various data types, including strings, binary data, objects, arrays, and more, and provides a powerful callback mechanism to provide real-time progress updates during asynchronous operations.
+
+## Main Features
+
+- **Easy to Use**: Simple API design makes it easy to integrate both the client and server sides.
+- **Support for Multiple Data Types**: Supports strings, binary data, objects, arrays, and more.
+- **Callback Mechanism**: Real-time progress updates can be provided through callback functions during asynchronous operations.
+- **Flexible Routing Configuration**: Supports the Koa framework, allowing you to easily integrate RPC routes into existing Koa applications.
+- **Cross-Origin Support**: Clients can communicate with servers on different domains via HTTP requests.
+
+## Installation
+
+```sh
+npm i js-rpc2
+```
+
+## Usage Example
+
+### Server Side
+
+```js
+import { createServer } from 'http'
+import Koa from 'koa'
+import Router from 'koa-router'
+import { createRpcServerKoaRouter } from 'js-rpc2/src/server.js'
+
+const app = new Koa()
+const router = new Router()
+app.use(router.routes())
+app.use(router.allowedMethods())
+createServer(app.callback()).listen(9000)
+
+class RpcApi {
+    /**
+     * @param {string} string 
+     * @param {Uint8Array} buffer 
+     * @param {Object} object 
+     * @param {null} _null 
+     * @param {undefined} _undefined 
+     * @param {object[]} array 
+     * @param {(arg1:string,arg2:number)=>void} callback 
+     */
+    async hello(string, buffer, object, _null, _undefined, array, callback) {
+        for (let i = 0; i < 3; i++) {
+            callback('progress : ', i)
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+        }
+        return [
+            `${typeof string}-${typeof buffer}-${typeof object}-${typeof _null}-${typeof _undefined}-${typeof array}`,
+            new Uint8Array(3),
+            { a: 1, b: 2, c: 3 },
+            1,
+            true,
+            undefined,
+            [1, 2, 3, 4],
+        ]
+    }
+}
+
+const extension = new RpcApi()
+
+createRpcServerKoaRouter({
+    path: '/rpc/abc',
+    router: router,
+    extension: extension,
+})
+```
+
+### Client Side
+
+```js
+import { createRpcClientHttp } from 'js-rpc2/src/client.js'
+
+/** @type{RpcApi} */
+const rpc = createRpcClientHttp({
+    url: `/rpc/abc`,                      // in same site html page
+    url: `http://127.0.0.1:9000/rpc/abc`, // others
+})
+
+let ret = await rpc.hello('123', new Uint8Array(3), { q: 2, w: 3, e: 4 }, null, undefined, [1, 2, 3, 4], (message, num) => {
+    console.info('callback', message, num)
+})
+console.info(ret)
+```
+
+## Output Example
+
+```sh
+node --test-name-pattern="^basic$" src/lib.test.js
+✔ basic (4.5986ms)
+callback progress :  0
+callback progress :  1
+callback progress :  2
+[
+  'string-object-object-object-undefined-object',
+  Uint8Array(3) [ 0, 0, 0 ],
+  { a: 1, b: 2, c: 3 },
+  1,
+  true,
+  undefined,
+  [ 1, 2, 3, 4 ]
+]
+```
+
+We hope that `js-rpc2` will help you build and manage communication between clients and servers more efficiently.
 
 ## example
 ```js
