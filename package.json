@@ -1,0 +1,34 @@
+{
+  "name": "js-rpc",
+  "version": "1.0.0",
+  "description": "js web websocket http rpc",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/yuanliwei/js-rpc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yuanliwei/js-rpc/issues"
+  },
+  "homepage": "https://github.com/yuanliwei/js-rpc#readme",
+  "types": "types.d.ts",
+  "keywords": [
+    "js",
+    "web",
+    "http",
+    "websocket",
+    "rpc"
+  ],
+  "author": "yuanliwei",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.9.4",
+    "koa": "^2.15.3",
+    "koa-router": "^13.0.1",
+    "ws": "^8.18.0"
+  }
+}
