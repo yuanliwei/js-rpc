@@ -86,10 +86,10 @@ export async function buildBufferData(queue, key, iv) {
 }
 
 /**
- * @param {Uint8Array} buffer
+ * @param {Uint8Array<ArrayBuffer>} buffer
  * @param {CryptoKey} key
  * @param {Uint8Array} iv
- * @returns {Promise<[Uint8Array[],Uint8Array]>}
+ * @returns {Promise<[Uint8Array[],Uint8Array<ArrayBuffer>]>}
  */
 export async function parseBufferData(buffer, key, iv) {
     /** @type{Uint8Array[]} */
