@@ -120,6 +120,19 @@ export async function parseBufferData(buffer, key, iv) {
     return [queue, remain]
 }
 
+function processPackets() {
+    let last = new Uint8Array(0)
+    return new TransformStream({
+        async transform(chunk, controller) {
+            let [queueReceive, remain] = await parseBufferData(Uint8Array_concat([last, chunk]), null, null)
+            last = remain
+            if (queueReceive.length > 0) {
+                let buffer = await buildBufferData(queueReceive, null, null)
+                controller.enqueue(buffer)
+            }
+        }
+    })
+}
 
 /**
  * @param {Uint8Array} buffer
@@ -627,7 +640,6 @@ export function createRpcServerHelper(param) {
  * writable: WritableStream<Uint8Array>;
  * readable: ReadableStream<Uint8Array>;
  * apiInvoke: (fnName: string, args: object[]) => Promise<object>;
- * transform:()=>TransformStream;
  * }} RPC_HELPER_CLIENT
  */
 
@@ -711,22 +723,8 @@ export function createRpcClientHelper(param) {
         }
     }
 
-    function transform() {
-        let last = new Uint8Array(0)
-        return new TransformStream({
-            async transform(chunk, controller) {
-                let [queueReceive, remain] = await parseBufferData(Uint8Array_concat([last, chunk]), null, null)
-                last = remain
-                if (queueReceive.length > 0) {
-                    let buffer = await buildBufferData(queueReceive, null, null)
-                    controller.enqueue(buffer)
-                }
-            }
-        })
-    }
-
     /** @type{RPC_HELPER_CLIENT} */
-    let ret = { writable: decode.writable, readable: encode.readable, apiInvoke, transform }
+    let ret = { writable: decode.writable, readable: encode.readable, apiInvoke }
     return ret
 }
 
@@ -814,7 +812,7 @@ export function createRpcClientHttp(param) {
                 if (param.intercept) {
                     param.intercept(res)
                 }
-                res.body.pipeThrough(helper.transform()).pipeTo(new WritableStream({
+                res.body.pipeThrough(processPackets()).pipeTo(new WritableStream({
                     async write(chunk) {
                         await writer.write(chunk)
                     }
