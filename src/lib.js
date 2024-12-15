@@ -627,10 +627,7 @@ export function createRpcServerHelper(param) {
  * writable: WritableStream<Uint8Array>;
  * readable: ReadableStream<Uint8Array>;
  * apiInvoke: (fnName: string, args: object[]) => Promise<object>;
- * transform:()=>{
- *   readable: ReadableStream<Uint8Array<ArrayBufferLike>>;
- *   witeable: WritableStream<Uint8Array<ArrayBufferLike>>;
- * }
+ * transform:()=>TransformStream;
  * }} RPC_HELPER_CLIENT
  */
 
@@ -715,10 +712,17 @@ export function createRpcClientHelper(param) {
     }
 
     function transform() {
-        let decode = createDecodeStream(Promise.resolve([null, null]))
-        let encode = createEncodeStream(Promise.resolve([null, null]))
-        decode.readable.pipeTo(encode.writable)
-        return { readable: encode.readable, witeable: decode.writable }
+        let last = new Uint8Array(0)
+        return new TransformStream({
+            async transform(chunk, controller) {
+                let [queueReceive, remain] = await parseBufferData(Uint8Array_concat([last, chunk]), null, null)
+                last = remain
+                if (queueReceive.length > 0) {
+                    let buffer = await buildBufferData(queueReceive, null, null)
+                    controller.enqueue(buffer)
+                }
+            }
+        })
     }
 
     /** @type{RPC_HELPER_CLIENT} */
@@ -810,9 +814,7 @@ export function createRpcClientHttp(param) {
                 if (param.intercept) {
                     param.intercept(res)
                 }
-                let transform = helper.transform()
-                res.body.pipeTo(transform.witeable).catch(e => console.error(e))
-                transform.readable.pipeTo(new WritableStream({
+                res.body.pipeThrough(helper.transform()).pipeTo(new WritableStream({
                     async write(chunk) {
                         await writer.write(chunk)
                     }
