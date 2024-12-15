@@ -1,5 +1,5 @@
 import { test } from 'node:test'
-import { deepStrictEqual, strictEqual } from 'node:assert'
+import { deepStrictEqual, ok, strictEqual } from 'node:assert'
 import { createRpcClientHttp, createRpcClientWebSocket, sleep, Uint8Array_from } from './lib.js'
 import { createServer } from 'node:http'
 import { WebSocketServer } from 'ws'
@@ -193,6 +193,10 @@ test('测试RPC调用-KoaRouter', async () => {
         },
         void: async function (/** @type {string} */ name,/** @type {Uint8Array} */ buffer) {
             console.info('call void')
+        },
+        longTimeBlock: async function () {
+            await sleep(1000)
+            return 'finished'
         }
     }
 
@@ -251,6 +255,20 @@ test('测试RPC调用-KoaRouter', async () => {
 
         let retvoid = await client.void('asdfghjkl', buffer)
         strictEqual(retvoid, undefined)
+
+        let startTime = performance.now()
+        let [time1, time2] = await Promise.all([
+            client.longTimeBlock().then(v => {
+                console.info('longTimeBlock', v)
+                return performance.now() - startTime
+            }),
+            client.hello('欣瑶').then(v => {
+                console.info('hello', v)
+                return performance.now() - startTime
+            })
+        ])
+        ok(time1 > 1000, `time1:${time1}`)
+        ok(time2 < 10, `time2:${time2}`)
     })
     console.info('over!')
 })

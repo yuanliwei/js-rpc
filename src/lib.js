@@ -627,6 +627,10 @@ export function createRpcServerHelper(param) {
  * writable: WritableStream<Uint8Array>;
  * readable: ReadableStream<Uint8Array>;
  * apiInvoke: (fnName: string, args: object[]) => Promise<object>;
+ * transform:()=>{
+ *   readable: ReadableStream<Uint8Array<ArrayBufferLike>>;
+ *   witeable: WritableStream<Uint8Array<ArrayBufferLike>>;
+ * }
  * }} RPC_HELPER_CLIENT
  */
 
@@ -710,8 +714,15 @@ export function createRpcClientHelper(param) {
         }
     }
 
+    function transform() {
+        let decode = createDecodeStream(rpc_key_iv)
+        let encode = createEncodeStream(rpc_key_iv)
+        decode.readable.pipeTo(encode.writable)
+        return { readable: encode.readable, witeable: decode.writable }
+    }
+
     /** @type{RPC_HELPER_CLIENT} */
-    let ret = { writable: decode.writable, readable: encode.readable, apiInvoke }
+    let ret = { writable: decode.writable, readable: encode.readable, apiInvoke, transform }
     return ret
 }
 
@@ -790,20 +801,23 @@ export function createRpcClientHttp(param) {
     let helper = createRpcClientHelper({ rpcKey: param.rpcKey })
     let writer = helper.writable.getWriter()
     helper.readable.pipeTo(new WritableStream({
-        async write(chunk) {
-            let res = await fetch(param.url, {
+        write(chunk) {
+            fetch(param.url, {
                 method: 'POST',
                 signal: param.signal,
                 body: chunk,
-            })
-            if (param.intercept) {
-                param.intercept(res)
-            }
-            res.body.pipeTo(new WritableStream({
-                async write(chunk) {
-                    await writer.write(chunk)
+            }).then(res => {
+                if (param.intercept) {
+                    param.intercept(res)
                 }
-            })).catch((err) => console.error('createRpcClientHttp fetch error', err.message))
+                let transform = helper.transform()
+                res.body.pipeTo(transform.witeable).catch(e => console.error(e))
+                transform.readable.pipeTo(new WritableStream({
+                    async write(chunk) {
+                        await writer.write(chunk)
+                    }
+                })).catch((e) => console.error(e))
+            }).catch(e => console.error(e))
         }
     })).catch((err) => console.error('createRpcClientHttp', err.message))
     return createRPCProxy(helper.apiInvoke)
