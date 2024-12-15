@@ -715,8 +715,8 @@ export function createRpcClientHelper(param) {
     }
 
     function transform() {
-        let decode = createDecodeStream(rpc_key_iv)
-        let encode = createEncodeStream(rpc_key_iv)
+        let decode = createDecodeStream(Promise.resolve([null, null]))
+        let encode = createEncodeStream(Promise.resolve([null, null]))
         decode.readable.pipeTo(encode.writable)
         return { readable: encode.readable, witeable: decode.writable }
     }
