@@ -120,7 +120,7 @@ export async function parseBufferData(buffer, key, iv) {
     return [queue, remain]
 }
 
-function processPackets() {
+export function processPackets() {
     let last = new Uint8Array(0)
     return new TransformStream({
         async transform(chunk, controller) {
