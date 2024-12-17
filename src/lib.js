@@ -373,26 +373,26 @@ export const RPC_TYPE_ERROR = 0xa07c0f84
  */
 
 /**
- * @typedef {{type:RPC_DATA_AGR_TYPE;data:object}} RPC_DATA_ARG_ITEM
+ * @typedef {{type:RPC_DATA_ARG_TYPE;data:object}} RPC_DATA_ARG_ITEM
  * @typedef {{
  * id:number;
  * type:RPC_TYPES;
- * data:{type:RPC_DATA_AGR_TYPE;data:object}[];
+ * data:{type:RPC_DATA_ARG_TYPE;data:object}[];
  * }} RPC_DATA
  */
 
-export const RPC_DATA_AGR_TYPE_OBJECT = 0xa7f68c
-export const RPC_DATA_AGR_TYPE_FUNCTION = 0x7ff45f
-export const RPC_DATA_AGR_TYPE_UINT8ARRAY = 0xedb218
-export const RPC_DATA_AGR_TYPE_UNDEFINED = 0x7f77fe
-export const RPC_DATA_AGR_TYPE_NULL = 0x5794f9
+export const RPC_DATA_ARG_TYPE_OBJECT = 0xa7f68c
+export const RPC_DATA_ARG_TYPE_FUNCTION = 0x7ff45f
+export const RPC_DATA_ARG_TYPE_UINT8ARRAY = 0xedb218
+export const RPC_DATA_ARG_TYPE_UNDEFINED = 0x7f77fe
+export const RPC_DATA_ARG_TYPE_NULL = 0x5794f9
 
 /**
- * @typedef {RPC_DATA_AGR_TYPE_OBJECT
- * |RPC_DATA_AGR_TYPE_FUNCTION
- * |RPC_DATA_AGR_TYPE_UINT8ARRAY
- * |RPC_DATA_AGR_TYPE_UNDEFINED
- * |RPC_DATA_AGR_TYPE_NULL} RPC_DATA_AGR_TYPE
+ * @typedef {RPC_DATA_ARG_TYPE_OBJECT
+ * |RPC_DATA_ARG_TYPE_FUNCTION
+ * |RPC_DATA_ARG_TYPE_UINT8ARRAY
+ * |RPC_DATA_ARG_TYPE_UNDEFINED
+ * |RPC_DATA_ARG_TYPE_NULL} RPC_DATA_ARG_TYPE
  */
 
 /**
@@ -405,23 +405,23 @@ export function buildRpcData(box) {
         buildBufferNumberUInt32LE(box.data.length),
     ]
     for (const o of box.data) {
-        if (o.type == RPC_DATA_AGR_TYPE_UINT8ARRAY) {
+        if (o.type == RPC_DATA_ARG_TYPE_UINT8ARRAY) {
             buffers.push(buildBufferNumberUInt32LE(o.type))
             buffers.push(buildBufferNumberUInt32LE(o.data.length))
             buffers.push(o.data)
         }
-        if (o.type == RPC_DATA_AGR_TYPE_FUNCTION) {
+        if (o.type == RPC_DATA_ARG_TYPE_FUNCTION) {
             buffers.push(buildBufferNumberUInt32LE(o.type))
             buffers.push(buildBufferSizeString(o.data))
         }
-        if (o.type == RPC_DATA_AGR_TYPE_OBJECT) {
+        if (o.type == RPC_DATA_ARG_TYPE_OBJECT) {
             buffers.push(buildBufferNumberUInt32LE(o.type))
             buffers.push(buildBufferSizeString(JSON.stringify(o.data)))
         }
-        if (o.type == RPC_DATA_AGR_TYPE_UNDEFINED) {
+        if (o.type == RPC_DATA_ARG_TYPE_UNDEFINED) {
             buffers.push(buildBufferNumberUInt32LE(o.type))
         }
-        if (o.type == RPC_DATA_AGR_TYPE_NULL) {
+        if (o.type == RPC_DATA_ARG_TYPE_NULL) {
             buffers.push(buildBufferNumberUInt32LE(o.type))
         }
     }
@@ -445,28 +445,28 @@ export function parseRpcData(buffer) {
     for (let i = 0; i < dataLength; i++) {
         let type = readUInt32LE(buffer, offset)
         offset += 4
-        if (type == RPC_DATA_AGR_TYPE_UINT8ARRAY) {
+        if (type == RPC_DATA_ARG_TYPE_UINT8ARRAY) {
             let size = readUInt32LE(buffer, offset)
             offset += 4
             let data = buffer.slice(offset, offset + size)
             offset += size
             args.push({ type: type, data })
         }
-        if (type == RPC_DATA_AGR_TYPE_FUNCTION) {
+        if (type == RPC_DATA_ARG_TYPE_FUNCTION) {
             let o = readBufferSizeString(buffer, offset)
             offset += o.size
             args.push({ type: type, data: o.string })
         }
-        if (type == RPC_DATA_AGR_TYPE_OBJECT) {
+        if (type == RPC_DATA_ARG_TYPE_OBJECT) {
             let o = readBufferSizeString(buffer, offset)
             offset += o.size
             let data = o.string
             args.push({ type: type, data: JSON.parse(data) })
         }
-        if (type == RPC_DATA_AGR_TYPE_UNDEFINED) {
+        if (type == RPC_DATA_ARG_TYPE_UNDEFINED) {
             args.push({ type: type, data: undefined })
         }
-        if (type == RPC_DATA_AGR_TYPE_NULL) {
+        if (type == RPC_DATA_ARG_TYPE_NULL) {
             args.push({ type: type, data: null })
         }
     }
@@ -482,23 +482,23 @@ export function buildRpcItemData(items) {
     /** @type{RPC_DATA_ARG_ITEM[]} */
     let arr = []
     for (const item of items) {
-        /** @type{RPC_DATA_AGR_TYPE} */
+        /** @type{RPC_DATA_ARG_TYPE} */
         let type = null
         let data = null
         if (item === undefined) {
-            type = RPC_DATA_AGR_TYPE_UNDEFINED
+            type = RPC_DATA_ARG_TYPE_UNDEFINED
             data = item
         } else if (item === null) {
-            type = RPC_DATA_AGR_TYPE_NULL
+            type = RPC_DATA_ARG_TYPE_NULL
             data = item
         } else if (item instanceof Uint8Array) {
-            type = RPC_DATA_AGR_TYPE_UINT8ARRAY
+            type = RPC_DATA_ARG_TYPE_UINT8ARRAY
             data = item
         } else if (typeof item == 'function') {
-            type = RPC_DATA_AGR_TYPE_FUNCTION
+            type = RPC_DATA_ARG_TYPE_FUNCTION
             data = item()
         } else {
-            type = RPC_DATA_AGR_TYPE_OBJECT
+            type = RPC_DATA_ARG_TYPE_OBJECT
             data = JSON.stringify(item)
         }
         arr.push({ type, data })
@@ -514,19 +514,19 @@ export function parseRpcItemData(array) {
     let items = []
     for (let i = 0; i < array.length; i++) {
         const o = array[i]
-        if (o.type == RPC_DATA_AGR_TYPE_FUNCTION) {
+        if (o.type == RPC_DATA_ARG_TYPE_FUNCTION) {
             o.data = o.data
         }
-        if (o.type == RPC_DATA_AGR_TYPE_NULL) {
+        if (o.type == RPC_DATA_ARG_TYPE_NULL) {
             o.data = null
         }
-        if (o.type == RPC_DATA_AGR_TYPE_UNDEFINED) {
+        if (o.type == RPC_DATA_ARG_TYPE_UNDEFINED) {
             o.data = undefined
         }
-        if (o.type == RPC_DATA_AGR_TYPE_UINT8ARRAY) {
+        if (o.type == RPC_DATA_ARG_TYPE_UINT8ARRAY) {
             o.data = o.data
         }
-        if (o.type == RPC_DATA_AGR_TYPE_OBJECT) {
+        if (o.type == RPC_DATA_ARG_TYPE_OBJECT) {
             o.data = JSON.parse(o.data)
         }
         items.push(o)
@@ -552,7 +552,7 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer) {
         let params = []
         for (let i = 0; i < args.length; i++) {
             const p = args[i]
-            if (p.type == RPC_DATA_AGR_TYPE_FUNCTION) {
+            if (p.type == RPC_DATA_ARG_TYPE_FUNCTION) {
                 const callback = async (/** @type {any[]} */ ...args) => {
                     /** @type{RPC_DATA} */
                     let box = { id: p.data, type: RPC_TYPE_CALLBACK, data: buildRpcItemData(args), }
