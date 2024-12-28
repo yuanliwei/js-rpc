@@ -640,6 +640,7 @@ export function createRpcServerHelper(param) {
  * writable: WritableStream<Uint8Array>;
  * readable: ReadableStream<Uint8Array>;
  * apiInvoke: (fnName: string, args: object[]) => Promise<object>;
+ * reject: (error:object)=>void;
  * }} RPC_HELPER_CLIENT
  */
 
@@ -723,8 +724,18 @@ export function createRpcClientHelper(param) {
         }
     }
 
+    /**
+     * @param {object} error
+     */
+    function reject(error) {
+        callbackFunctionMap.forEach((o) => {
+            o.promise?.reject(error)
+        })
+        callbackFunctionMap.clear()
+    }
+
     /** @type{RPC_HELPER_CLIENT} */
-    let ret = { writable: decode.writable, readable: encode.readable, apiInvoke }
+    let ret = { writable: decode.writable, readable: encode.readable, apiInvoke, reject }
     return ret
 }
 
@@ -816,9 +827,13 @@ export function createRpcClientHttp(param) {
                     async write(chunk) {
                         await writer.write(chunk)
                     }
-                })).catch((e) => console.error(e))
-            }).catch(e => console.error(e))
+                })).catch((e) => {
+                    helper.reject(e)
+                })
+            }).catch(e => {
+                helper.reject(e)
+            })
         }
-    })).catch((err) => console.error('createRpcClientHttp', err.message))
+    })).catch((err) => helper.reject(err))
     return createRPCProxy(helper.apiInvoke)
 }
