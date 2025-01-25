@@ -574,7 +574,7 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer) {
         box = {
             id: dataId,
             type: RPC_TYPE_ERROR,
-            data: buildRpcItemData([`Error:${error.message}\n${error.stack}`]),
+            data: buildRpcItemData([error.message, error.stack]),
         }
     }
     await writer.write(buildRpcData(box))
@@ -593,7 +593,11 @@ export function createRPCProxy(apiInvoke) {
             }
             proxy = new Proxy(Function, {
                 async apply(_target, _thisArg, argArray) {
-                    return await apiInvoke(String(p), argArray)
+                    try {
+                        return await apiInvoke(String(p), argArray)
+                    } catch (error) {
+                        throw new Error(error.message, { cause: error })
+                    }
                 }
             })
             map.set(p, proxy)
@@ -644,6 +648,20 @@ export function createRpcServerHelper(param) {
  * }} RPC_HELPER_CLIENT
  */
 
+class RPCError extends Error {
+    /**
+     * @param {string} message
+     * @param {string} stack
+     * @param {ErrorOptions} [option]
+     */
+    constructor(message, stack, option) {
+        super(message, option)
+        if (stack) {
+            this.stack = stack
+        }
+    }
+}
+
 /**
  * @param {{ rpcKey: string; }} param
  */
@@ -666,7 +684,7 @@ export function createRpcClientHelper(param) {
                 if (callbackFunctionMap.has(data.id)) {
                     let o = callbackFunctionMap.get(data.id)
                     if (data.type == RPC_TYPE_ERROR) {
-                        o.promise.reject(new Error(items.at(0).data))
+                        o.promise.reject(new RPCError(items.at(0).data, items.at(1).data))
                     }
                     if (data.type == RPC_TYPE_RETURN) {
                         callbackFunctionMap.delete(data.id)

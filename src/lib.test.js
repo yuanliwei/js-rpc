@@ -283,3 +283,47 @@ export async function runWithAbortController(func) {
         await sleep(1000)
     } finally { ac.abort() }
 }
+
+
+test('error-stack', async () => {
+    // node --test-name-pattern="^error-stack$" src/lib.test.js
+
+    // server
+    const app = new Koa()
+    const router = new Router()
+    app.use(router.routes())
+    app.use(router.allowedMethods())
+    let server = createServer(app.callback()).listen(9000)
+
+    class RpcApi {
+        async hello() {
+            new URL('/')
+        }
+    }
+
+    const extension = new RpcApi()
+
+    createRpcServerKoaRouter({
+        path: '/rpc/abc',
+        router: router,
+        extension: extension,
+    })
+
+
+    // client
+
+    /** @type{RpcApi} */
+    const rpc = createRpcClientHttp({
+        // url: `/rpc/abc`,                      // in same site html page
+        url: `http://127.0.0.1:9000/rpc/abc`, // others
+    })
+
+    try {
+        let ret = await rpc.hello()
+        console.info(ret)
+    } catch (error) {
+        console.error(error)
+    }
+    server.close()
+
+})
