@@ -74,7 +74,7 @@ export function createRpcServerKoaRouter(param) {
             'Content-Type': 'application/octet-stream'
         })
         /** @type{object} */
-        let b=helper.readable
+        let b = helper.readable
         ctx.body = Readable.fromWeb(b)
     })
 }

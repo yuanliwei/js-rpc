@@ -632,7 +632,9 @@ export function createRpcServerHelper(param) {
         async close() {
             await writer.close()
         }
-    }))
+    })).catch(e => {
+        console.error(e)
+    })
 
     /** @type{RPC_HELPER_SERVER} */
     let ret = { writable: decode.writable, readable: encode.readable }
