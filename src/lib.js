@@ -88,11 +88,11 @@ export async function buildBufferData(queue, key, iv) {
 /**
  * @param {Uint8Array<ArrayBuffer>} buffer
  * @param {CryptoKey} key
- * @param {Uint8Array} iv
- * @returns {Promise<[Uint8Array[],Uint8Array<ArrayBuffer>]>}
+ * @param {Uint8Array<ArrayBuffer>} iv
+ * @returns {Promise<[Uint8Array<ArrayBuffer>[],Uint8Array<ArrayBuffer>]>}
  */
 export async function parseBufferData(buffer, key, iv) {
-    /** @type{Uint8Array[]} */
+    /** @type{Uint8Array<ArrayBuffer>[]} */
     let queue = []
     let offset = 0
     let remain = new Uint8Array(0)
@@ -310,7 +310,7 @@ export async function encrypt(data, key, iv) {
 }
 
 /**
- * @param {Uint8Array} data 
+ * @param {Uint8Array<ArrayBuffer>} data 
  * @param {CryptoKey} key 
  * @param {Uint8Array} iv 
  * @returns 

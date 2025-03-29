@@ -64,13 +64,17 @@ export function createRpcServerWebSocket(param) {
 export function createRpcServerKoaRouter(param) {
     param.router.post(param.path, async (ctx) => {
         let helper = createRpcServerHelper({ rpcKey: param.rpcKey, extension: param.extension })
-        await Readable.toWeb(ctx.req).pipeTo(helper.writable)
+        /** @type{ReadableStream} */
+        let a = Readable.toWeb(ctx.req)
+        await a.pipeTo(helper.writable)
         ctx.status = 200
         ctx.response.set({
             'Connection': 'keep-alive',
             'Cache-Control': 'no-cache',
             'Content-Type': 'application/octet-stream'
         })
-        ctx.body = Readable.fromWeb(helper.readable)
+        /** @type{object} */
+        let b=helper.readable
+        ctx.body = Readable.fromWeb(b)
     })
 }
