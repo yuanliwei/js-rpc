@@ -538,8 +538,9 @@ export function parseRpcItemData(array) {
  * @param {object} extension
  * @param {WritableStreamDefaultWriter<Uint8Array>} writer
  * @param {Uint8Array} buffer
+ * @param {(msg:string)=>void} [logger]
  */
-export async function rpcRunServerDecodeBuffer(extension, writer, buffer, debug = false) {
+export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger) {
     /** @type{RPC_DATA} */
     let box = null
     let dataId = 0
@@ -579,8 +580,8 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer, debug 
             data: buildRpcItemData([error.message, error.stack]),
         }
     }
-    if (debug) {
-        console.info(`rpcRunServerDecodeBuffer duration: ${Date.now() - time} ${fnName}(${params.join(', ')})`)
+    if (logger) {
+        logger(`time: ${Date.now() - time}ms ${fnName}(${params.join(', ')})`)
     }
     await writer.write(buildRpcData(box))
 }
@@ -623,7 +624,7 @@ export function createRPCProxy(apiInvoke) {
  * @param {{ 
  * rpcKey: string; 
  * extension: object; 
- * debug?: boolean; 
+ * logger?: (msg:string)=>void; 
  * }} param
  */
 export function createRpcServerHelper(param) {
@@ -633,7 +634,7 @@ export function createRpcServerHelper(param) {
     let writer = encode.writable.getWriter()
     decode.readable.pipeTo(new WritableStream({
         async write(buffer) {
-            await rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.debug)
+            await rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger)
         },
         async close() {
             await writer.close()
