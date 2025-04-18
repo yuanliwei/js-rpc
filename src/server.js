@@ -58,12 +58,13 @@ export function createRpcServerWebSocket(param) {
  * path: string; 
  * router: Router<any, {}>; 
  * rpcKey?:string;
+ * debug?:boolean;
  * extension: Object; 
  * }} param 
  */
 export function createRpcServerKoaRouter(param) {
     param.router.post(param.path, async (ctx) => {
-        let helper = createRpcServerHelper({ rpcKey: param.rpcKey, extension: param.extension })
+        let helper = createRpcServerHelper({ rpcKey: param.rpcKey, extension: param.extension, debug: param.debug })
         /** @type{ReadableStream} */
         let a = Readable.toWeb(ctx.req)
         await a.pipeTo(helper.writable)

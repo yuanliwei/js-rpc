@@ -539,17 +539,19 @@ export function parseRpcItemData(array) {
  * @param {WritableStreamDefaultWriter<Uint8Array>} writer
  * @param {Uint8Array} buffer
  */
-export async function rpcRunServerDecodeBuffer(extension, writer, buffer) {
+export async function rpcRunServerDecodeBuffer(extension, writer, buffer, debug = false) {
     /** @type{RPC_DATA} */
     let box = null
     let dataId = 0
+    let fnName = null
+    let params = []
+    let time = Date.now()
     try {
         let o = parseRpcData(buffer)
         dataId = o.id
         let items = parseRpcItemData(o.data)
-        let fnName = items.at(0).data
+        fnName = items.at(0).data
         let args = items.slice(1)
-        let params = []
         for (let i = 0; i < args.length; i++) {
             const p = args[i]
             if (p.type == RPC_DATA_ARG_TYPE_FUNCTION) {
@@ -570,12 +572,15 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer) {
             box = { id: o.id, type: RPC_TYPE_RETURN, data: buildRpcItemData([ret]), }
         }
     } catch (error) {
-        console.error(error)
+        console.error('rpcRunServerDecodeBuffer', fnName, params, error)
         box = {
             id: dataId,
             type: RPC_TYPE_ERROR,
             data: buildRpcItemData([error.message, error.stack]),
         }
+    }
+    if (debug) {
+        console.info(`rpcRunServerDecodeBuffer duration: ${Date.now() - time} ${fnName}(${params.join(', ')})`)
     }
     await writer.write(buildRpcData(box))
 }
@@ -618,6 +623,7 @@ export function createRPCProxy(apiInvoke) {
  * @param {{ 
  * rpcKey: string; 
  * extension: object; 
+ * debug?: boolean; 
  * }} param
  */
 export function createRpcServerHelper(param) {
@@ -627,7 +633,7 @@ export function createRpcServerHelper(param) {
     let writer = encode.writable.getWriter()
     decode.readable.pipeTo(new WritableStream({
         async write(buffer) {
-            await rpcRunServerDecodeBuffer(param.extension, writer, buffer)
+            await rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.debug)
         },
         async close() {
             await writer.close()
