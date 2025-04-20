@@ -25,7 +25,7 @@ export function createRpcServerWebSocket(param) {
         if (url != param.path) {
             return
         }
-        let helper = createRpcServerHelper({ rpcKey: param.rpcKey, extension: param.extension })
+        let helper = createRpcServerHelper({ rpcKey: param.rpcKey, extension: param.extension, async: true, })
         let writer = helper.writable.getWriter()
         helper.readable.pipeTo(new WritableStream({
             async write(chunk) {

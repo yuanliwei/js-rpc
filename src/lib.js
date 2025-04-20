@@ -559,7 +559,11 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger
                 const callback = async (/** @type {any[]} */ ...args) => {
                     /** @type{RPC_DATA} */
                     let box = { id: p.data, type: RPC_TYPE_CALLBACK, data: buildRpcItemData(args), }
-                    await writer.write(buildRpcData(box))
+                    try {
+                        await writer.write(buildRpcData(box))
+                    } catch (error) {
+                        throw new Error(`rpc callback writer.write()`, { cause: error })
+                    }
                 }
                 params.push(callback)
             } else {
@@ -573,7 +577,10 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger
             box = { id: o.id, type: RPC_TYPE_RETURN, data: buildRpcItemData([ret]), }
         }
     } catch (error) {
-        console.error('rpcRunServerDecodeBuffer', fnName, params, error)
+        console.error('rpcRunServerDecodeBuffer', fnName, params.map(o => {
+            if (typeof o == 'function') { return 'function' }
+            return o
+        }), error)
         box = {
             id: dataId,
             type: RPC_TYPE_ERROR,
@@ -581,7 +588,10 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger
         }
     }
     if (logger) {
-        logger(`time: ${Date.now() - time}ms ${fnName}(${params.join(', ')})`)
+        logger(`time: ${Date.now() - time}ms ${fnName}(${params.map(o => {
+            if (typeof o == 'function') { return Function }
+            return o
+        }).join(', ')})`)
     }
     await writer.write(buildRpcData(box))
 }
@@ -625,6 +635,7 @@ export function createRPCProxy(apiInvoke) {
  * rpcKey: string; 
  * extension: object; 
  * logger?: (msg:string)=>void; 
+ * async?: boolean; 
  * }} param
  */
 export function createRpcServerHelper(param) {
@@ -634,14 +645,16 @@ export function createRpcServerHelper(param) {
     let writer = encode.writable.getWriter()
     decode.readable.pipeTo(new WritableStream({
         async write(buffer) {
-            await rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger)
+            if (param.async) {
+                rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger).catch(console.error)
+            } else {
+                await rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger)
+            }
         },
         async close() {
             await writer.close()
         }
-    })).catch(e => {
-        console.error(e)
-    })
+    })).catch(console.error)
 
     /** @type{RPC_HELPER_SERVER} */
     let ret = { writable: decode.writable, readable: encode.readable }
@@ -771,6 +784,7 @@ export function createRpcClientHelper(param) {
  * url:string;
  * rpcKey:string;
  * signal:AbortSignal;
+ * intercept?:(e:Event)=>void;
  * }} param
  */
 export function createRpcClientWebSocket(param) {
@@ -806,6 +820,9 @@ export function createRpcClientWebSocket(param) {
             signal.resolve()
         })
         ws.addEventListener('error', (e) => {
+            if (param.intercept) {
+                param.intercept(e)
+            }
             console.error('createRpcClientWebSocket createWebSocket ws error', e)
             promise.resolve()
         })
