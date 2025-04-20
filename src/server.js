@@ -17,6 +17,7 @@ export { createRpcServerHelper }
  * wss: WebSocketServer; 
  * rpcKey:string;
  * extension: Object; 
+ * logger?:(msg:string)=>void;
  * }} param
  */
 export function createRpcServerWebSocket(param) {
@@ -25,7 +26,7 @@ export function createRpcServerWebSocket(param) {
         if (url != param.path) {
             return
         }
-        let helper = createRpcServerHelper({ rpcKey: param.rpcKey, extension: param.extension, async: true, })
+        let helper = createRpcServerHelper({ rpcKey: param.rpcKey, extension: param.extension, async: true, logger: param.logger })
         let writer = helper.writable.getWriter()
         helper.readable.pipeTo(new WritableStream({
             async write(chunk) {
