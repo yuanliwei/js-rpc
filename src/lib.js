@@ -744,6 +744,14 @@ export function createRpcClientHelper(param) {
         argArray.push(fnName)
         for (const arg of args) {
             if (arg instanceof Function) {
+                const isAsyncFunction = arg.constructor?.name === 'AsyncFunction'
+                if (!isAsyncFunction) {
+                    const receivedType = arg.constructor?.name || 'regular function'
+                    throw new Error(
+                        `Expected an AsyncFunction as the callback, but received a ${receivedType}. ` +
+                        'Ensure the callback is declared with "async function" or an arrow function using "async".'
+                    )
+                }
                 const key = uniqueKeyID++
                 keys.push(key)
                 callbackFunctionMap.set(key, { id: key, type: RPC_TYPE_CALLBACK, callback: arg })
