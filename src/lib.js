@@ -589,7 +589,8 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger
     }
     if (logger) {
         logger(`time: ${Date.now() - time}ms ${fnName}(${params.map(o => {
-            if (typeof o == 'function') { return Function }
+            if (typeof o == 'function') { return `Function()` }
+            if (o instanceof Uint8Array) { return `Uint8Array(${o.length})` }
             return o
         }).join(', ')})`)
     }

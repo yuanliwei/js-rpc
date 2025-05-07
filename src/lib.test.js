@@ -133,13 +133,13 @@ test('测试RPC调用-WebSocket', async () => {
         console.info(string)
         strictEqual(string, 'hello asdfghjkl')
 
-        let stringcallback = await client.callback('asdfghjkl', (progress) => {
+        let stringcallback = await client.callback('asdfghjkl', async (progress) => {
             console.info(`client : ${progress}`)
         })
         strictEqual(stringcallback, 'hello callback asdfghjkl')
 
         let callbackCount = 0
-        let stringcallback2 = await client.callback2('asdfghjkl', (progress, buffer) => {
+        let stringcallback2 = await client.callback2('asdfghjkl', async (progress, buffer) => {
             console.info(`client : ${progress}`, buffer)
             callbackCount++
         })
@@ -211,6 +211,9 @@ test('测试RPC调用-KoaRouter', async () => {
             router: router,
             rpcKey: '11474f3dfbb861700cb6c3864b328311',
             extension: extension,
+            logger(msg) {
+                console.info(msg)
+            },
         })
 
         server.addListener('request', app.callback())
@@ -233,7 +236,7 @@ test('测试RPC调用-KoaRouter', async () => {
         strictEqual(string, 'hello asdfghjkl')
 
         let callbackCount = 0
-        let stringcallback = await client.callback('asdfghjkl', (progress) => {
+        let stringcallback = await client.callback('asdfghjkl', async (progress) => {
             console.info(`client : ${progress}`)
             callbackCount++
         })
@@ -241,7 +244,7 @@ test('测试RPC调用-KoaRouter', async () => {
         strictEqual(3, callbackCount)
         strictEqual(stringcallback, 'hello callback asdfghjkl')
 
-        let stringcallback2 = await client.callback2('asdfghjkl', (progress, buffer) => {
+        let stringcallback2 = await client.callback2('asdfghjkl', async (progress, buffer) => {
             console.info(`client : ${progress}`, buffer)
         })
         strictEqual(stringcallback2, 'hello callback asdfghjkl')
