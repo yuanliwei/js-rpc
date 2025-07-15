@@ -1,3 +1,7 @@
+/**
+ * @import { ExtensionApi } from "./types.js"
+ */
+
 const JS_RPC_WITH_CRYPTO = true
 
 export const sleep = (/** @type {number} */ timeout) => new Promise((resolve) => setTimeout(resolve, timeout))
@@ -535,12 +539,14 @@ export function parseRpcItemData(array) {
 }
 
 /**
- * @param {object} extension
+ * @template T
+ * @param {ExtensionApi<T>} extension
  * @param {WritableStreamDefaultWriter<Uint8Array>} writer
  * @param {Uint8Array} buffer
- * @param {(msg:string)=>void} [logger]
+ * @param {(msg:string)=>void} logger
+ * @param {any} context
  */
-export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger) {
+export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger, context) {
     /** @type{RPC_DATA} */
     let box = null
     let dataId = 0
@@ -570,7 +576,17 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger
                 params.push(p.data)
             }
         }
-        let ret = await extension[fnName](...params)
+        let store = extension.asyncLocalStorage
+        let ret = await new Promise((resolve, reject) => {
+            store.run(context, async () => {
+                try {
+                    let ret = await extension[fnName](...params)
+                    resolve(ret)
+                } catch (error) {
+                    reject(error)
+                }
+            })
+        })
         if (Array.isArray(ret)) {
             box = { id: o.id, type: RPC_TYPE_RETURN_ARRAY, data: buildRpcItemData(ret), }
         } else {
@@ -632,11 +648,13 @@ export function createRPCProxy(apiInvoke) {
  */
 
 /**
+ * @template T
  * @param {{ 
  * rpcKey: string; 
- * extension: object; 
+ * extension: ExtensionApi<T>;
  * logger?: (msg:string)=>void; 
  * async?: boolean; 
+ * context?:any;
  * }} param
  */
 export function createRpcServerHelper(param) {
@@ -644,12 +662,13 @@ export function createRpcServerHelper(param) {
     const encode = createEncodeStream(rpc_key_iv)
     const decode = createDecodeStream(rpc_key_iv)
     let writer = encode.writable.getWriter()
+    let context = param.context
     decode.readable.pipeTo(new WritableStream({
         async write(buffer) {
             if (param.async) {
-                rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger).catch(console.error)
+                rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger, context).catch(console.error)
             } else {
-                await rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger)
+                await rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger, context)
             }
         },
         async close() {

@@ -6,6 +6,9 @@ import { WebSocketServer } from 'ws'
 import Koa from 'koa'
 import Router from 'koa-router'
 import { createRpcServerKoaRouter, createRpcServerWebSocket } from './server.js'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { Readable, Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 
 test('basic', async () => {
     // node --test-name-pattern="^basic$" src/lib.test.js
@@ -18,6 +21,8 @@ test('basic', async () => {
     let server = createServer(app.callback()).listen(9000)
 
     class RpcApi {
+        asyncLocalStorage = new AsyncLocalStorage()
+
         /**
          * 
          * @param {string} string 
@@ -62,7 +67,7 @@ test('basic', async () => {
         url: `http://127.0.0.1:9000/rpc/abc`, // others
     })
 
-    let ret = await rpc.hello('123', new Uint8Array(3), { q: 2, w: 3, e: 4 }, null, undefined, [1, 2, 3, 4], (message, num) => {
+    let ret = await rpc.hello('123', new Uint8Array(3), { q: 2, w: 3, e: 4 }, null, undefined, [1, 2, 3, 4], async (message, num) => {
         console.info('callback', message, num)
     })
     console.info(ret)
@@ -74,6 +79,7 @@ test('测试RPC调用-WebSocket', async () => {
     // node --test-name-pattern="^测试RPC调用-WebSocket$" src/lib.test.js
 
     const extension = {
+        asyncLocalStorage: new AsyncLocalStorage(),
         hello: async function (/** @type {string} */ name) {
             return `hello ${name}`
         },
@@ -168,6 +174,7 @@ test('测试RPC调用-WebSocket', async () => {
 test('测试RPC调用-KoaRouter', async () => {
     // node --test-name-pattern="^测试RPC调用-KoaRouter$" src/lib.test.js
     const extension = {
+        asyncLocalStorage: new AsyncLocalStorage(),
         hello: async function (/** @type {string} */ name) {
             return `hello ${name}`
         },
@@ -276,6 +283,54 @@ test('测试RPC调用-KoaRouter', async () => {
     console.info('over!')
 })
 
+test('测试RPC调用-KoaRouter-AsyncLocalStorage', async () => {
+    // node --test-name-pattern="^测试RPC调用-KoaRouter-AsyncLocalStorage$" src/lib.test.js
+    const extension = {
+        asyncLocalStorage: new AsyncLocalStorage(),
+        hello: async function (/** @type {string} */ name) {
+            console.info('asyncLocalStorage.getStore', this.asyncLocalStorage.getStore())
+            return `hello ${name}`
+        },
+    }
+
+    await runWithAbortController(async (ac) => {
+        let server = createServer()
+        let app = new Koa()
+        let router = new Router()
+
+        ac.signal.addEventListener('abort', () => { server.close() })
+        createRpcServerKoaRouter({
+            path: '/abc',
+            router: router,
+            rpcKey: 'abc',
+            extension: extension,
+            logger(msg) {
+                console.info(msg)
+            },
+        })
+
+        server.addListener('request', app.callback())
+        app.use(router.routes())
+        app.use(router.allowedMethods())
+
+        server.listen(9000)
+        await sleep(100)
+
+        /** @type{typeof extension} */
+        let client = createRpcClientHttp({
+            url: `http://127.0.0.1:9000/abc`,
+            rpcKey: 'abc',
+            signal: ac.signal,
+        })
+        await sleep(100)
+
+        let string = await client.hello('asdfghjkl')
+        console.info(string)
+        strictEqual(string, 'hello asdfghjkl')
+    })
+    console.info('over!')
+})
+
 /**
  * @param {(ac: AbortController) => Promise<void>} func
  */
@@ -299,6 +354,7 @@ test('error-stack', async () => {
     let server = createServer(app.callback()).listen(9000)
 
     class RpcApi {
+        asyncLocalStorage = new AsyncLocalStorage()
         async hello() {
             new URL('/')
         }
@@ -329,4 +385,59 @@ test('error-stack', async () => {
     }
     server.close()
 
+})
+
+test('async-local-storage', async () => {
+    // node --test-name-pattern="^async-local-storage$" src/lib.test.js
+    let store = new AsyncLocalStorage()
+
+    let p1 = Promise.withResolvers()
+    store.run({ a: 1 }, async () => {
+        console.info('--- 1 1 ', store.getStore())
+        await sleep(100)
+        console.info('--- 1 2 ', store.getStore())
+        p1.resolve()
+    })
+    let p2 = Promise.withResolvers()
+    store.run({ a: 2 }, async () => {
+        console.info('--- 2 1 ', store.getStore())
+        await sleep(100)
+        console.info('--- 2 2 ', store.getStore())
+        p2.resolve()
+    })
+    await Promise.all([p1.promise, p2.promise])
+})
+
+test('async-local-storage-stream', async () => {
+    // node --test-name-pattern="^async-local-storage-stream$" src/lib.test.js
+    let store = new AsyncLocalStorage()
+    let p1 = Promise.withResolvers()
+    let readable = new Readable({ read() { } })
+
+    store.run({ a: 1 }, async () => {
+        console.info('--- step 1 ', store.getStore())
+        !(async () => {
+            for (let i = 0; i < 3; i++) {
+                readable.push(`inner data:${i}`)
+                await sleep(10)
+            }
+        })()
+        await pipeline(readable, new Transform({
+            transform(chunk, _, callback) {
+                console.info(`--- step transform ${chunk} :`, store.getStore())
+                callback()
+            }
+        }))
+        console.info('--- step 2 ', store.getStore())
+        p1.resolve()
+    })
+
+    for (let i = 0; i < 3; i++) {
+        readable.push(`data:${i}`)
+        await sleep(10)
+    }
+    readable.push(null)
+    await sleep(100)
+
+    await Promise.all([p1.promise])
 })
