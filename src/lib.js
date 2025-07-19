@@ -544,9 +544,8 @@ export function parseRpcItemData(array) {
  * @param {WritableStreamDefaultWriter<Uint8Array>} writer
  * @param {Uint8Array} buffer
  * @param {(msg:string)=>void} logger
- * @param {any} context
  */
-export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger, context) {
+export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger) {
     /** @type{RPC_DATA} */
     let box = null
     let dataId = 0
@@ -554,8 +553,6 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger
     let params = []
     let time = Date.now()
     try {
-        let store = extension.asyncLocalStorage
-        store.enterWith(context)
         let o = parseRpcData(buffer)
         dataId = o.id
         let items = parseRpcItemData(o.data)
@@ -654,13 +651,14 @@ export function createRpcServerHelper(param) {
     const encode = createEncodeStream(rpc_key_iv)
     const decode = createDecodeStream(rpc_key_iv)
     let writer = encode.writable.getWriter()
-    let context = param.context
     decode.readable.pipeTo(new WritableStream({
         async write(buffer) {
+            let asyncLocalStorage = param.extension.asyncLocalStorage
+            asyncLocalStorage.enterWith(param.context)
             if (param.async) {
-                rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger, context).catch(console.error)
+                rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger).catch(console.error)
             } else {
-                await rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger, context)
+                await rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger)
             }
         },
         async close() {
