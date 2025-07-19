@@ -286,9 +286,11 @@ test('测试RPC调用-KoaRouter', async () => {
 test('测试RPC调用-KoaRouter-AsyncLocalStorage', async () => {
     // node --test-name-pattern="^测试RPC调用-KoaRouter-AsyncLocalStorage$" src/lib.test.js
     const extension = {
+        /** @type{AsyncLocalStorage<Koa.ParameterizedContext<Koa.DefaultState, Koa.DefaultContext, any>>} */
         asyncLocalStorage: new AsyncLocalStorage(),
         hello: async function (/** @type {string} */ name) {
-            console.info('asyncLocalStorage.getStore', this.asyncLocalStorage.getStore())
+            let ctx = this.asyncLocalStorage.getStore()
+            strictEqual(ctx.path, '/abc')
             return `hello ${name}`
         },
     }
@@ -327,6 +329,7 @@ test('测试RPC调用-KoaRouter-AsyncLocalStorage', async () => {
         let string = await client.hello('asdfghjkl')
         console.info(string)
         strictEqual(string, 'hello asdfghjkl')
+        strictEqual(extension.asyncLocalStorage.getStore(), undefined)
     })
     console.info('over!')
 })
@@ -406,6 +409,30 @@ test('async-local-storage', async () => {
         p2.resolve()
     })
     await Promise.all([p1.promise, p2.promise])
+})
+
+test('async-local-storage-enterWith', async () => {
+    // node --test-name-pattern="^async-local-storage-enterWith$" src/lib.test.js
+    let store = new AsyncLocalStorage()
+    let p1 = Promise.withResolvers()
+    strictEqual(store.getStore(), undefined)
+    store.enterWith('v1')
+    strictEqual(store.getStore(), 'v1')
+    store.run('v2', async () => {
+        strictEqual(store.getStore(), 'v2')
+        let p2 = Promise.withResolvers()
+        setTimeout(() => {
+            strictEqual(store.getStore(), 'v2')
+            store.enterWith('v3')
+            strictEqual(store.getStore(), 'v3')
+            p2.resolve()
+        })
+        await p2.promise
+        strictEqual(store.getStore(), 'v2')
+        p1.resolve()
+    })
+    await p1.promise
+    strictEqual(store.getStore(), 'v1')
 })
 
 test('async-local-storage-stream', async () => {

@@ -554,6 +554,8 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger
     let params = []
     let time = Date.now()
     try {
+        let store = extension.asyncLocalStorage
+        store.enterWith(context)
         let o = parseRpcData(buffer)
         dataId = o.id
         let items = parseRpcItemData(o.data)
@@ -576,17 +578,7 @@ export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger
                 params.push(p.data)
             }
         }
-        let store = extension.asyncLocalStorage
-        let ret = await new Promise((resolve, reject) => {
-            store.run(context, async () => {
-                try {
-                    let ret = await extension[fnName](...params)
-                    resolve(ret)
-                } catch (error) {
-                    reject(error)
-                }
-            })
-        })
+        let ret = await extension[fnName](...params)
         if (Array.isArray(ret)) {
             box = { id: o.id, type: RPC_TYPE_RETURN_ARRAY, data: buildRpcItemData(ret), }
         } else {
