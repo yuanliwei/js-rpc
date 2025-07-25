@@ -26,9 +26,9 @@
   "author": "yuanliwei",
   "license": "MIT",
   "devDependencies": {
+    "@koa/router": "^13.1.1",
     "@types/node": "^22.13.14",
     "koa": "^2.15.3",
-    "koa-router": "^13.0.1",
     "ws": "^8.18.0"
   }
 }

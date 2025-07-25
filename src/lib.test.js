@@ -4,7 +4,7 @@ import { createRpcClientHttp, createRpcClientWebSocket, sleep, Uint8Array_from }
 import { createServer } from 'node:http'
 import { WebSocketServer } from 'ws'
 import Koa from 'koa'
-import Router from 'koa-router'
+import Router from '@koa/router'
 import { createRpcServerKoaRouter, createRpcServerWebSocket } from './server.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { Readable, Transform } from 'node:stream'

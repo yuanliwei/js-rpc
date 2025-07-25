@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from "node:async_hooks"
 export { createRpcServerHelper }
 
 /**
- * @import Router from 'koa-router'
+ * @import Router from '@koa/router'
  */
 
 /**
