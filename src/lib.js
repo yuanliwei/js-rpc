@@ -364,16 +364,24 @@ export const RPC_DATA_ARG_TYPE_FUNCTION = 0x7ff45f
  * @param {RPC_DATA} box
  */
 export function buildRpcData(box) {
-    return Uint8Array.from(packr.pack(box))
+    let type = box.type
+    let data = box.data
+    if (type == RPC_TYPE_CALL || type == RPC_TYPE_CALLBACK) {
+        data = data.map(({ type, data }) => [type, data])
+    }
+    return Uint8Array.from(packr.pack([box.id, type, data]))
 }
 
 /**
  * @param {Uint8Array} buffer
  */
 export function parseRpcData(buffer) {
+    let [id, type, data] = packr.unpack(buffer)
+    if (type == RPC_TYPE_CALL || type == RPC_TYPE_CALLBACK) {
+        data = data.map(([type, data]) => ({ type, data }))
+    }
     /** @type{RPC_DATA} */
-    let box = packr.unpack(buffer)
-    return box
+    return { id, type, data }
 }
 
 /**
