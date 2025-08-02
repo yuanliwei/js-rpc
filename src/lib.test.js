@@ -1,5 +1,5 @@
 import { test } from 'node:test'
-import { deepStrictEqual, ok, strictEqual } from 'node:assert'
+import { deepStrictEqual, fail, ok, strictEqual } from 'node:assert'
 import { createRpcClientHttp, createRpcClientWebSocket, sleep, Uint8Array_from } from './lib.js'
 import { createServer } from 'node:http'
 import { WebSocketServer } from 'ws'
@@ -9,6 +9,7 @@ import { createRpcServerKoaRouter, createRpcServerWebSocket } from './server.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { Packr } from 'msgpackr'
 
 test('basic', async () => {
     // node --test-name-pattern="^basic$" src/lib.test.js
@@ -354,7 +355,9 @@ test('error-stack', async () => {
     const router = new Router()
     app.use(router.routes())
     app.use(router.allowedMethods())
-    let server = createServer(app.callback()).listen(9000)
+    let server = createServer(app.callback()).listen(9001)
+    using s = new DisposableStack()
+    s.adopt(0, () => { server.close() })
 
     class RpcApi {
         asyncLocalStorage = new AsyncLocalStorage()
@@ -377,16 +380,17 @@ test('error-stack', async () => {
     /** @type{RpcApi} */
     const rpc = createRpcClientHttp({
         // url: `/rpc/abc`,                      // in same site html page
-        url: `http://127.0.0.1:9000/rpc/abc`, // others
+        url: `http://127.0.0.1:9001/rpc/abc`, // others
     })
 
     try {
         let ret = await rpc.hello()
         console.info(ret)
+        fail('boom')
     } catch (error) {
         console.error(error)
+        ok(error.cause.stack.includes('at RpcApi.hello'))
     }
-    server.close()
 
 })
 
@@ -467,4 +471,116 @@ test('async-local-storage-stream', async () => {
     await sleep(100)
 
     await Promise.all([p1.promise])
+})
+
+test('msgpackr', async () => {
+    // node --test-name-pattern="^msgpackr$" src/lib.test.js
+    let value = {
+        int: 99,
+        float: 0.3,
+        bigint: 3000n,
+        string: "string",
+        bool: true,
+        date: new Date('2000-01-02 03:04:05.678'),
+        uint8array: Uint8Array.from([12, 34, 56, 78]),
+        object: { a: 1, b: 2 },
+        array: [1, 2, 3, 'a', 'b', 'c'],
+        map: new Map(),
+        set: new Set(),
+
+        // 补充更多类型
+        null: null,
+        undefined: undefined,
+        emptyString: "",
+        zero: 0,
+        negativeInt: -42,
+        negativeFloat: -3.14,
+        infinity: Infinity,
+        negativeInfinity: -Infinity,
+        nan: NaN,
+
+        // 大数字测试
+        largeInt: 9007199254740991, // Number.MAX_SAFE_INTEGER
+        veryLargeBigInt: 123456789012345678901234567890n,
+
+        // 字符串测试
+        unicodeString: "Hello 世界 🌍",
+        specialChars: "特殊字符: \n\t\r\\\"'",
+
+        // 数组测试
+        emptyArray: [],
+        nestedArray: [1, [2, 3], [4, [5, 6]]],
+        mixedTypeArray: [1, "string", true, null, { x: 1 }],
+
+        // 对象测试
+        emptyObject: {},
+        nestedObject: {
+            level1: {
+                level2: {
+                    value: "deep"
+                }
+            }
+        },
+        objectWithSpecialKeys: {
+            "": "empty key",
+            "123": "numeric key",
+            "key with spaces": "value"
+        },
+
+        // Map 和 Set 扩展测试
+        // @ts-ignore
+        mapWithMixedTypes: new Map([
+            ['string', 'value'],
+            [123, 'number key'],
+            [true, 'boolean key'],
+            [null, 'null key'],
+            [{ nested: 'key' }, 'object key']
+        ]),
+        setWithMixedValues: new Set([1, 'string', true, null, undefined]),
+        emptyMap: new Map(),
+        emptySet: new Set(),
+
+        // TypedArray 测试
+        int8Array: new Int8Array([-128, -1, 0, 1, 127]),
+        int16Array: new Int16Array([-32768, -1, 0, 1, 32767]),
+        int32Array: new Int32Array([-2147483648, -1, 0, 1, 2147483647]),
+        uint8ClampedArray: new Uint8ClampedArray([0, 127, 255]),
+        float32Array: new Float32Array([1.1, 2.2, 3.3]),
+        float64Array: new Float64Array([1.111111111111111, 2.222222222222222]),
+
+        // ArrayBuffer 测试
+        arrayBuffer: new ArrayBuffer(8),
+
+        // 其他特殊对象
+        regexp: /test\/pattern/gi,
+        error: new Error("test error"),
+
+        // 嵌套复杂结构
+        complexNested: {
+            arrayWithObjects: [
+                { id: 1, data: new Map([['a', 1]]) },
+                { id: 2, data: new Set([1, 2, 3]) }
+            ],
+            mapWithComplexValues: new Map([
+                ['nested', {
+                    array: [1, 2, new Set([4, 5])]
+                }]
+            ])
+        }
+    }
+
+    // 初始化一些 ArrayBuffer 数据
+    const bufferView = new Uint8Array(value.arrayBuffer)
+    for (let i = 0; i < bufferView.length; i++) {
+        bufferView[i] = i
+    }
+
+    let packr = new Packr({ structuredClone: true, useBigIntExtension: true, moreTypes: true, copyBuffers: true, })
+    let serializedAsBuffer = packr.pack(value)
+    let data = packr.unpack(serializedAsBuffer)
+
+    strictEqual(data.error.message, value.error.message)
+    delete data['error']
+    delete value['error']
+    deepStrictEqual(data, value)
 })
