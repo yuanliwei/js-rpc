@@ -75,7 +75,6 @@ export function createRpcServerKoaRouter(param) {
     }
     param.router.post(param.path, async (ctx) => {
         let helper = createRpcServerHelper({ rpcKey: param.rpcKey, extension: param.extension, logger: param.logger, context: ctx })
-        /** @type{ReadableStream} */
         let a = Readable.toWeb(ctx.req)
         await a.pipeTo(helper.writable)
         ctx.status = 200

@@ -23,8 +23,8 @@ export function Promise_withResolvers() {
 }
 
 /**
- * @param {Promise<[CryptoKey,Uint8Array]>} key_iv
- * @returns {TransformStream<Uint8Array, Uint8Array>}
+ * @param {Promise<[CryptoKey,Uint8Array<ArrayBuffer>]>} key_iv
+ * @returns {TransformStream<Uint8Array<ArrayBuffer>, Uint8Array<ArrayBuffer>>}
  */
 export function createEncodeStream(key_iv) {
     let key = null
@@ -41,8 +41,8 @@ export function createEncodeStream(key_iv) {
 }
 
 /**
- * @param {Promise<[CryptoKey,Uint8Array]>} key_iv
- * @returns {TransformStream<Uint8Array, Uint8Array>}
+ * @param {Promise<[CryptoKey,Uint8Array<ArrayBuffer>]>} key_iv
+ * @returns {TransformStream<Uint8Array<ArrayBuffer>, Uint8Array<ArrayBuffer>>}
  */
 export function createDecodeStream(key_iv) {
     let key = null
@@ -65,10 +65,10 @@ export function createDecodeStream(key_iv) {
 const HEADER_CHECK = 0xb1f7705f
 
 /**
- * @param {Uint8Array[]} queue
+ * @param {Uint8Array<ArrayBuffer>[]} queue
  * @param {CryptoKey} key
- * @param {Uint8Array} iv
- * @returns {Promise<Uint8Array>}
+ * @param {Uint8Array<ArrayBuffer>} iv
+ * @returns {Promise<Uint8Array<ArrayBuffer>>}
  */
 export async function buildBufferData(queue, key, iv) {
     let buffers = []
@@ -134,7 +134,7 @@ export function processPackets() {
 }
 
 /**
- * @param {Uint8Array} buffer
+ * @param {Uint8Array<ArrayBuffer>} buffer
  * @param {number} offset
  */
 export function readUInt32LE(buffer, offset) {
@@ -146,7 +146,7 @@ export function readUInt32LE(buffer, offset) {
 }
 
 /**
- * @param {Uint8Array} buffer
+ * @param {Uint8Array<ArrayBuffer>} buffer
  * @param {number} value
  * @param {number} offset
  */
@@ -159,7 +159,7 @@ export function writeUInt32LE(buffer, value, offset) {
 }
 
 /**
- * @param {Uint8Array[]} buffers
+ * @param {Uint8Array<ArrayBuffer>[]} buffers
  */
 export function Uint8Array_concat(buffers) {
     const totalLength = buffers.reduce((sum, buffer) => sum + buffer.length, 0)
@@ -196,7 +196,7 @@ export function Uint8Array_from(array, encoding) {
 }
 
 /**
- * @param {Uint8Array} buffer
+ * @param {Uint8Array<ArrayBuffer>} buffer
  * @param {'utf-8' | 'hex' | 'base64'} [encoding]
  */
 export function Uint8Array_toString(buffer, encoding = 'utf-8') {
@@ -231,7 +231,7 @@ function buildBufferSizeString(string) {
 }
 
 /**
- * @param {Uint8Array} buffer
+ * @param {Uint8Array<ArrayBuffer>} buffer
  * @param {number} offset
  */
 function readBufferSizeString(buffer, offset) {
@@ -258,7 +258,7 @@ export function guid() {
  * 
  * @param {string} password 
  * @param {number} iterations 
- * @returns {Promise<[CryptoKey,Uint8Array]>}
+ * @returns {Promise<[CryptoKey,Uint8Array<ArrayBuffer>]>}
  */
 export async function buildKeyIv(password, iterations) {
     if (!JS_RPC_WITH_CRYPTO) return [null, null]
@@ -294,9 +294,9 @@ export async function buildKeyIv(password, iterations) {
 
 /**
  * 
- * @param {Uint8Array} data 
+ * @param {Uint8Array<ArrayBuffer>} data 
  * @param {CryptoKey} key 
- * @param {Uint8Array} iv 
+ * @param {Uint8Array<ArrayBuffer>} iv 
  * @returns 
  */
 export async function encrypt(data, key, iv) {
@@ -311,7 +311,7 @@ export async function encrypt(data, key, iv) {
 /**
  * @param {Uint8Array<ArrayBuffer>} data 
  * @param {CryptoKey} key 
- * @param {Uint8Array} iv 
+ * @param {Uint8Array<ArrayBuffer>} iv 
  * @returns 
  */
 export async function decrypt(data, key, iv) {
@@ -373,7 +373,7 @@ export function buildRpcData(box) {
 }
 
 /**
- * @param {Uint8Array} buffer
+ * @param {Uint8Array<ArrayBuffer>} buffer
  */
 export function parseRpcData(buffer) {
     let [id, type, data] = packr.unpack(buffer)
@@ -409,8 +409,8 @@ export function buildRpcItemData(items) {
 /**
  * @template T
  * @param {ExtensionApi<T>} extension
- * @param {WritableStreamDefaultWriter<Uint8Array>} writer
- * @param {Uint8Array} buffer
+ * @param {WritableStreamDefaultWriter<Uint8Array<ArrayBuffer>>} writer
+ * @param {Uint8Array<ArrayBuffer>} buffer
  * @param {(msg:string)=>void} logger
  */
 export async function rpcRunServerDecodeBuffer(extension, writer, buffer, logger) {
@@ -495,8 +495,8 @@ export function createRPCProxy(apiInvoke) {
 
 /** 
  * @typedef {{
- * writable: WritableStream<Uint8Array>;
- * readable: ReadableStream<Uint8Array>;
+ * writable: WritableStream<Uint8Array<ArrayBuffer>>;
+ * readable: ReadableStream<Uint8Array<ArrayBuffer>>;
  * }} RPC_HELPER_SERVER
  */
 
@@ -537,8 +537,8 @@ export function createRpcServerHelper(param) {
 
 /** 
  * @typedef {{
- * writable: WritableStream<Uint8Array>;
- * readable: ReadableStream<Uint8Array>;
+ * writable: WritableStream<Uint8Array<ArrayBuffer>>;
+ * readable: ReadableStream<Uint8Array<ArrayBuffer>>;
  * apiInvoke: (fnName: string, args: object[]) => Promise<object>;
  * reject: (error:object)=>void;
  * }} RPC_HELPER_CLIENT
@@ -671,7 +671,7 @@ export function createRpcClientWebSocket(param) {
     let helper = createRpcClientHelper({ rpcKey: param.rpcKey })
     let writer = helper.writable.getWriter()
     let signal = Promise_withResolvers()
-    /** @type{WritableStreamDefaultWriter<Uint8Array>} */
+    /** @type{WritableStreamDefaultWriter<Uint8Array<ArrayBuffer>>} */
     let socketWriter = null
     helper.readable.pipeTo(new WritableStream({
         async write(chunk) {
@@ -759,5 +759,76 @@ export function createRpcClientHttp(param) {
             })
         }
     })).catch((err) => helper.reject(err))
+    return createRPCProxy(helper.apiInvoke)
+}
+
+/**
+ * @template T
+ * @param {{
+ * port:MessagePort;
+ * rpcKey:string;
+ * extension: ExtensionApi<T>; 
+ * logger?:(msg:string)=>void;
+ * }} param 
+ */
+export function createRpcServerMessagePort(param) {
+    const port = param.port
+    let helper = createRpcServerHelper({
+        rpcKey: '', extension: param.extension, async: true, logger: param.logger,
+    })
+    let writer = helper.writable.getWriter()
+    port.onmessage = async (event) => {
+        await writer.write(event.data)
+    }
+    helper.readable.pipeTo(new WritableStream({
+        async write(chunk) {
+            port.postMessage(chunk)
+        }
+    }))
+}
+
+/**
+ * @import {Electron} from './types.js'
+ * @template T
+ * @param {{
+ * port:Electron.MessagePortMain;
+ * rpcKey:string;
+ * extension: ExtensionApi<T>; 
+ * logger?:(msg:string)=>void;
+ * }} param 
+ */
+export function createRpcServerElectronMessagePort(param) {
+    const port = param.port
+    let helper = createRpcServerHelper({
+        rpcKey: '', extension: param.extension, async: true, logger: param.logger,
+    })
+    let writer = helper.writable.getWriter()
+    port.on('message', async (event) => {
+        await writer.write(event.data)
+    })
+    helper.readable.pipeTo(new WritableStream({
+        async write(chunk) {
+            port.postMessage(chunk)
+        }
+    }))
+}
+
+/**
+ * @param {{
+ * port:MessagePort;
+ * rpcKey:string;
+ * }} param
+ */
+export function createRpcClientMessagePort(param) {
+    let helper = createRpcClientHelper({ rpcKey: param.rpcKey })
+    let writer = helper.writable.getWriter()
+    helper.readable.pipeTo(new WritableStream({
+        async write(chunk) {
+            param.port.postMessage(chunk)
+        }
+    }))
+    param.port.onmessage = async (event) => {
+        await writer.write(event.data)
+    }
     return createRPCProxy(helper.apiInvoke)
 }

@@ -313,3 +313,46 @@ export async function runWithAbortController(func) {
     } finally { ac.abort() }
 }
 ```
+
+## Electron
+```js
+// main.js
+class AppApi {
+    asyncLocalStorage = new AsyncLocalStorage()
+
+    async hello(param) {
+        return 'wertyuioiuytre ' + param
+    }
+}
+
+import { ipcMain } from 'electron'
+import { createRpcServerElectronMessagePort } from 'js-rpc2/src/lib.js'
+
+ipcMain.on('port', (event) => {
+    const port = event.ports[0]
+    createRpcServerElectronMessagePort({ port, rpcKey: '', extension: new AppApi() })
+    port.start()
+})
+
+// preload.js
+import { ipcRenderer } from 'electron/renderer'
+
+window.onmessage = (/** @type {MessageEvent} */ event) => {
+    if (event.origin == location.origin && event.data != 'port') {
+        ipcRenderer.postMessage('port', null, [event.ports[0]])
+    }
+}
+
+// renderer.js
+import { createRpcClientMessagePort } from 'js-rpc2/src/lib.js'
+
+const channel = new MessageChannel();
+window.postMessage("port", location.origin, [channel.port1]);
+let rpc = createRpcClientMessagePort({ port: channel.port2, rpcKey: "" });
+
+// uasge.js
+async function postPortMessage() {
+    let ret = await rpc.hello('6667');
+    console.info("ret from rpc:", ret);
+}
+```
