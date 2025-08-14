@@ -21,7 +21,8 @@
     "web",
     "http",
     "websocket",
-    "rpc"
+    "rpc",
+    "electron"
   ],
   "author": "yuanliwei",
   "license": "MIT",

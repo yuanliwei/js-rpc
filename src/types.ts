@@ -52,6 +52,11 @@ export declare namespace Electron {
 
     const NodeEventEmitter: typeof import('events').EventEmitter;
 
+    interface MessageEvent {
+        data: any;
+        ports: MessagePortMain[];
+    }
+
     class MessagePortMain extends NodeEventEmitter {
 
         // Docs: https://electronjs.org/docs/api/message-port-main
