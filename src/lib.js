@@ -774,10 +774,10 @@ export function _testCreateRpcClientHttp(param) {
                 method: 'POST',
                 signal: param.signal,
                 // @ts-ignore
-                duplex:'half',
+                duplex: 'half',
                 body: new ReadableStream({
-                    async pull(controller){
-                        controller.enqueue(chunk.slice(0,10))
+                    async pull(controller) {
+                        controller.enqueue(chunk.slice(0, 10))
                         await sleep(1000)
                         controller.enqueue(chunk.slice(10))
                         controller.close()
@@ -873,25 +873,28 @@ export function createRpcClientMessagePort(param) {
 
 /**
  * @param {string} text 
- * @returns 
  */
 export function base64decode(text) {
-    const _tidyB64 = (/** @type {string} */ s) => s.replace(/[^A-Za-z0-9\+\/]/g, '')
-    const _unURI = (/** @type {string} */ a) => _tidyB64(a.replace(/[-_]/g, (m0) => m0 == '-' ? '+' : '/'))
-    text = _unURI(text)
-    return new Uint8Array(globalThis.atob(text).split('').map(c => c.charCodeAt(0)))
+    const binaryString = atob(text)
+    const len = binaryString.length
+    const bytes = new Uint8Array(len)
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+    }
+    return bytes
 }
 
 /**
  * @param {Uint8Array<ArrayBuffer>} buffer 
- * @returns 
  */
-export function base64encode(buffer, urlsafe = false) {
-    let b64 = globalThis.btoa(String.fromCharCode(...new Uint8Array(buffer)))
-    if (urlsafe) {
-        b64 = b64.replace(/=/g, '').replace(/[+\/]/g, (m0) => m0 == '+' ? '-' : '_')
+export function base64encode(buffer) {
+    const CHUNK_SZ = 0x8000
+    const chars = []
+    for (let i = 0; i < buffer.length; i += CHUNK_SZ) {
+        const chunk = buffer.subarray(i, i + CHUNK_SZ)
+        chars.push(String.fromCharCode.apply(null, chunk))
     }
-    return b64
+    return btoa(chars.join(''))
 }
 
 /**
