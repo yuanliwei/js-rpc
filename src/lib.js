@@ -518,7 +518,7 @@ export function createRpcServerHelper(param) {
     decode.readable.pipeTo(new WritableStream({
         async write(buffer) {
             let asyncLocalStorage = param.extension.asyncLocalStorage
-            asyncLocalStorage.enterWith(param.context)
+            asyncLocalStorage?.enterWith(param.context)
             if (param.async) {
                 rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger).catch(console.error)
             } else {
@@ -830,5 +830,121 @@ export function createRpcClientMessagePort(param) {
     param.port.onmessage = async (event) => {
         await writer.write(event.data)
     }
+    return createRPCProxy(helper.apiInvoke)
+}
+
+/**
+ * @param {string} text 
+ * @returns 
+ */
+export function base64decode(text) {
+    const _tidyB64 = (/** @type {string} */ s) => s.replace(/[^A-Za-z0-9\+\/]/g, '')
+    const _unURI = (/** @type {string} */ a) => _tidyB64(a.replace(/[-_]/g, (m0) => m0 == '-' ? '+' : '/'))
+    text = _unURI(text)
+    return new Uint8Array(globalThis.atob(text).split('').map(c => c.charCodeAt(0)))
+}
+
+/**
+ * @param {Uint8Array<ArrayBuffer>} buffer 
+ * @returns 
+ */
+export function base64encode(buffer, urlsafe = false) {
+    let b64 = globalThis.btoa(String.fromCharCode(...new Uint8Array(buffer)))
+    if (urlsafe) {
+        b64 = b64.replace(/=/g, '').replace(/[+\/]/g, (m0) => m0 == '+' ? '-' : '_')
+    }
+    return b64
+}
+
+/**
+ * @import {chrome as Chrome} from './types.js'
+ * @template T
+ * @param {{
+ * chrome:Chrome;
+ * key: string;
+ * extension: ExtensionApi<T>
+ * logger?:(msg:string)=>void;
+ * }} param 
+ */
+export function createRpcServerChromeExtensions(param) {
+    const chrome = param.chrome
+    const actionMap = new Map()
+    chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+        if (request.action === param.key) {
+            let tabId = sender.tab?.id
+            let { keyServer, keyClient } = request.data
+            let helper = createRpcServerHelper({
+                rpcKey: '', extension: param.extension, async: true, logger: param.logger,
+            })
+            let writer = helper.writable.getWriter()
+            actionMap.set(keyServer, (/** @type {Uint8Array<ArrayBuffer>} */ data) => {
+                writer.write(data)
+            })
+            helper.readable.pipeTo(new WritableStream({
+                async write(chunk) {
+                    let resp = null
+                    if (tabId) {
+                        resp = await chrome.tabs.sendMessage(tabId, { action: keyClient, data: base64encode(chunk), })
+                    } else {
+                        resp = await chrome.runtime.sendMessage({ action: keyClient, data: base64encode(chunk), })
+                    }
+                    if (!resp) {
+                        actionMap.delete(keyServer)
+                    }
+                }
+            }))
+            sendResponse(true)
+        }
+        let write = actionMap.get(request.action)
+        if (write) {
+            write(base64decode(request.data))
+            sendResponse(true)
+        }
+    })
+}
+
+/**
+ * @param {{ 
+ * chrome:Chrome;
+ * key:string;
+ * tabId?: number;
+ * }} param
+ */
+export function createRpcClientChromeExtensions(param) {
+    const chrome = param.chrome
+    let helper = createRpcClientHelper({ rpcKey: '' })
+    let writer = helper.writable.getWriter()
+    !(async () => {
+        let keyServer = guid()
+        let keyClient = guid()
+        chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+            if (request.action === keyClient) {
+                sendResponse(true)
+                await writer.write(base64decode(request.data))
+            }
+        })
+        helper.readable.pipeTo(new WritableStream({
+            async write(chunk) {
+                if (param.tabId) {
+                    await chrome.tabs.sendMessage(param.tabId, { action: keyServer, data: base64encode(chunk) })
+                } else {
+                    await chrome.runtime.sendMessage({ action: keyServer, data: base64encode(chunk) })
+                }
+            }
+        }))
+        let response = null
+        try {
+            if (param.tabId) {
+                response = await chrome.tabs.sendMessage(param.tabId, { action: param.key, data: { keyServer, keyClient }, })
+            } else {
+                response = await chrome.runtime.sendMessage({ action: param.key, data: { keyServer, keyClient }, })
+            }
+        } catch (error) {
+            throw new Error(`Failed to establish RPC connection: ${error.message}`)
+        }
+        if (!response) {
+            throw new Error('RPC server did not respond - connection failed')
+        }
+    })()
     return createRPCProxy(helper.apiInvoke)
 }

@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-export type ExtensionApi<T> = { asyncLocalStorage: AsyncLocalStorage<T> } & object;
+export type ExtensionApi<T> = { asyncLocalStorage?: AsyncLocalStorage<T> } & object;
 
 
 export type RPC_TYPE_CALL = 0xdf68f4cb
@@ -93,4 +93,42 @@ export declare namespace Electron {
         start(): void;
     }
 
+}
+
+export declare namespace chrome {
+    namespace events {
+        interface Event<T extends (...args: any) => void> {
+            addListener(callback: T): void;
+        }
+    }
+    namespace tabs {
+        interface Tab {
+            id?: number | undefined;
+        }
+        interface MessageSender {
+            tab?: chrome.tabs.Tab;
+        }
+        export interface MessageSendOptions {
+        }
+        export function sendMessage<M = any, R = any>(
+            tabId: number,
+            message: M,
+            options?: MessageSendOptions,
+        ): Promise<R>;
+        interface MessageOptions {
+            includeTlsChannelId?: boolean | undefined;
+        }
+    }
+    namespace runtime {
+        interface MessageSender {
+            tab?: chrome.tabs.Tab;
+        }
+        const onMessage: events.Event<
+            (message: any, sender: MessageSender, sendResponse: (response?: any) => void) => void
+        >;
+        function sendMessage<M = any, R = any>(message: M, options?: MessageOptions): Promise<R>;
+        interface MessageOptions {
+            includeTlsChannelId?: boolean | undefined;
+        }
+    }
 }

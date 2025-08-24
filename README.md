@@ -356,3 +356,55 @@ async function postPortMessage() {
     console.info("ret from rpc:", ret);
 }
 ```
+
+## chrome extensions
+```js
+import {createRpcServerChromeExtensions, createRpcClientChromeExtensions} from 'js-rpc2/src/lib.js'
+
+// background.js
+export class RpcBackgroundApi {
+    /**
+     * @param {(progress: string, date: Date) => Promise<void>} cb
+     */
+    async callback(cb) {
+        console.info('callback in background', 'cb')
+        for (let i = 0; i < 10; i++) {
+            await sleep(1000)
+            await cb(`from background index is ${i}`, new Date())
+        }
+        return 'over!'
+    }
+}
+createRpcServerChromeExtensions({ chrome, key: 'rpc-popup->background', extension: new RpcBackgroundApi(), })
+createRpcServerChromeExtensions({ chrome, key: 'rpc-content-scripts->background', extension: new RpcBackgroundApi(), })
+
+
+// content_scripts.js
+export class RpcContentScriptsApi {
+    async callBackgroundWithCallback(name, callback) {
+        console.info('name', name)
+        return await rpcContentScriptBackground.callback(callback)
+    }
+}
+createRpcServerChromeExtensions({ chrome, key: 'rpc-popup->content-script', extension: new RpcContentScriptsApi() })
+/** @type{RpcBackgroundApi} */
+export const rpcContentScriptBackground = createRpcClientChromeExtensions({ chrome, key: 'rpc-content-scripts->background' })
+
+
+// popup.js
+const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+/** @type{RpcContentScriptsApi} */
+export const rpcPopupContentScripts = createRpcClientChromeExtensions({ chrome, key: 'rpc-popup->content-script', tabId: tab.id, })
+/** @type{RpcBackgroundApi} */
+export const rpcPopupBackground = createRpcClientChromeExtensions({ chrome, key: 'rpc-popup->background' })
+
+let resp = await rpcPopupContentScripts.callBackgroundWithCallback("name", async (progress, date) => {
+    console.info('at popup callback ',progress, date)
+})
+console.info("over!", resp)
+
+let resp = await rpcPopupBackground.callback(async (progress, date) => {
+    console.info('at popup callback ',progress, date)
+})
+console.info("over!", resp)
+```

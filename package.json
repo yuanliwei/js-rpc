@@ -22,7 +22,9 @@
     "http",
     "websocket",
     "rpc",
-    "electron"
+    "electron",
+    "chrome",
+    "extensions"
   ],
   "author": "yuanliwei",
   "license": "MIT",
