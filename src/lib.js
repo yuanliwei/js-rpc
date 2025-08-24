@@ -1,7 +1,7 @@
 import { Packr } from 'msgpackr'
 
 /**
- * @import { CALLBACK_ITEM, ExtensionApi, RPC_DATA, RPC_DATA_ARG_ITEM } from "./types.js"
+ * @import { CALLBACK_ITEM, RPC_DATA, RPC_DATA_ARG_ITEM } from "./types.js"
  */
 
 const JS_RPC_WITH_CRYPTO = true
@@ -407,8 +407,7 @@ export function buildRpcItemData(items) {
 }
 
 /**
- * @template T
- * @param {ExtensionApi<T>} extension
+ * @param {object} extension
  * @param {WritableStreamDefaultWriter<Uint8Array<ArrayBuffer>>} writer
  * @param {Uint8Array<ArrayBuffer>} buffer
  * @param {(msg:string)=>void} logger
@@ -501,13 +500,11 @@ export function createRPCProxy(apiInvoke) {
  */
 
 /**
- * @template T
  * @param {{ 
  * rpcKey: string; 
- * extension: ExtensionApi<T>;
+ * extension: object;
  * logger?: (msg:string)=>void; 
  * async?: boolean; 
- * context?:any;
  * }} param
  */
 export function createRpcServerHelper(param) {
@@ -517,8 +514,6 @@ export function createRpcServerHelper(param) {
     let writer = encode.writable.getWriter()
     decode.readable.pipeTo(new WritableStream({
         async write(buffer) {
-            let asyncLocalStorage = param.extension.asyncLocalStorage
-            asyncLocalStorage?.enterWith(param.context)
             if (param.async) {
                 rpcRunServerDecodeBuffer(param.extension, writer, buffer, param.logger).catch(console.error)
             } else {
@@ -763,11 +758,55 @@ export function createRpcClientHttp(param) {
 }
 
 /**
- * @template T
+ * @param {{
+ * url:string;
+ * rpcKey?:string;
+ * signal?:AbortSignal;
+ * intercept?:(res:Response)=>void;
+ * }} param
+ */
+export function _testCreateRpcClientHttp(param) {
+    let helper = createRpcClientHelper({ rpcKey: param.rpcKey })
+    let writer = helper.writable.getWriter()
+    helper.readable.pipeTo(new WritableStream({
+        write(chunk) {
+            fetch(param.url, {
+                method: 'POST',
+                signal: param.signal,
+                // @ts-ignore
+                duplex:'half',
+                body: new ReadableStream({
+                    async pull(controller){
+                        controller.enqueue(chunk.slice(0,10))
+                        await sleep(1000)
+                        controller.enqueue(chunk.slice(10))
+                        controller.close()
+                    }
+                }),
+            }).then(res => {
+                if (param.intercept) {
+                    param.intercept(res)
+                }
+                res.body.pipeThrough(processPackets()).pipeTo(new WritableStream({
+                    async write(chunk) {
+                        await writer.write(chunk)
+                    }
+                })).catch((e) => {
+                    helper.reject(e)
+                })
+            }).catch(e => {
+                helper.reject(e)
+            })
+        }
+    })).catch((err) => helper.reject(err))
+    return createRPCProxy(helper.apiInvoke)
+}
+
+/**
  * @param {{
  * port:MessagePort;
  * rpcKey:string;
- * extension: ExtensionApi<T>; 
+ * extension: object;
  * logger?:(msg:string)=>void;
  * }} param 
  */
@@ -789,11 +828,10 @@ export function createRpcServerMessagePort(param) {
 
 /**
  * @import {Electron} from './types.js'
- * @template T
  * @param {{
  * port:Electron.MessagePortMain;
  * rpcKey:string;
- * extension: ExtensionApi<T>; 
+ * extension: object; 
  * logger?:(msg:string)=>void;
  * }} param 
  */
@@ -858,11 +896,10 @@ export function base64encode(buffer, urlsafe = false) {
 
 /**
  * @import {chrome as Chrome} from './types.js'
- * @template T
  * @param {{
  * chrome:Chrome;
  * key: string;
- * extension: ExtensionApi<T>
+ * extension: {messageSender:Chrome.runtime.MessageSender;};
  * logger?:(msg:string)=>void;
  * }} param 
  */
@@ -872,6 +909,7 @@ export function createRpcServerChromeExtensions(param) {
     chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         if (request.action === param.key) {
             let tabId = sender.tab?.id
+            param.extension.messageSender = sender
             let { keyServer, keyClient } = request.data
             let helper = createRpcServerHelper({
                 rpcKey: '', extension: param.extension, async: true, logger: param.logger,

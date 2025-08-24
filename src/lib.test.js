@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import { deepStrictEqual, fail, ok, strictEqual } from 'node:assert'
-import { createRpcClientHttp, createRpcClientWebSocket, sleep, Uint8Array_from } from './lib.js'
+import { _testCreateRpcClientHttp, createRpcClientHttp, createRpcClientWebSocket, sleep, Uint8Array_from } from './lib.js'
 import { createServer } from 'node:http'
 import { WebSocketServer } from 'ws'
 import Koa from 'koa'
@@ -292,6 +292,9 @@ test('测试RPC调用-KoaRouter-AsyncLocalStorage', async () => {
         hello: async function (/** @type {string} */ name) {
             let ctx = this.asyncLocalStorage.getStore()
             strictEqual(ctx.path, '/abc')
+            await sleep(100)
+            ctx = this.asyncLocalStorage.getStore()
+            strictEqual(ctx.path, '/abc')
             return `hello ${name}`
         },
     }
@@ -320,7 +323,7 @@ test('测试RPC调用-KoaRouter-AsyncLocalStorage', async () => {
         await sleep(100)
 
         /** @type{typeof extension} */
-        let client = createRpcClientHttp({
+        let client = _testCreateRpcClientHttp({
             url: `http://127.0.0.1:9000/abc`,
             rpcKey: 'abc',
             signal: ac.signal,

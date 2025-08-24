@@ -1,8 +1,3 @@
-import { AsyncLocalStorage } from "node:async_hooks";
-
-export type ExtensionApi<T> = { asyncLocalStorage?: AsyncLocalStorage<T> } & object;
-
-
 export type RPC_TYPE_CALL = 0xdf68f4cb
 export type RPC_TYPE_RETURN = 0x68b17581
 export type RPC_TYPE_CALLBACK = 0x8d65e5cc
