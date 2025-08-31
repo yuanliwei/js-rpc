@@ -2,6 +2,7 @@ import { Packr } from 'msgpackr'
 
 /**
  * @import { CALLBACK_ITEM, RPC_DATA, RPC_DATA_ARG_ITEM } from "./types.js"
+ * @import { MessagePort as NodeJSMessagePort, Worker as NodeJSWorker } from 'node:worker_threads'
  */
 
 const JS_RPC_WITH_CRYPTO = true
@@ -987,5 +988,47 @@ export function createRpcClientChromeExtensions(param) {
             throw new Error('RPC server did not respond - connection failed')
         }
     })()
+    return createRPCProxy(helper.apiInvoke)
+}
+
+/**
+ * @param {{
+ * parentPort: NodeJSMessagePort;
+ * extension: Object;
+ * logger?:(msg:string)=>void;
+ * }} param 
+ */
+export function createRpcServerNodeJSWorker(param) {
+    const port = param.parentPort
+    let helper = createRpcServerHelper({
+        rpcKey: '', extension: param.extension, async: true, logger: param.logger
+    })
+    let writer = helper.writable.getWriter()
+    port.on('message', async (data) => {
+        await writer.write(data)
+    })
+    helper.readable.pipeTo(new WritableStream({
+        async write(chunk) {
+            port.postMessage(chunk)
+        }
+    }))
+}
+
+/**
+ * @param {{
+ * worker:NodeJSWorker;
+ * }} param
+ */
+export function createRpcClientNodeJSWorker(param) {
+    let helper = createRpcClientHelper({ rpcKey: '' })
+    let writer = helper.writable.getWriter()
+    helper.readable.pipeTo(new WritableStream({
+        async write(chunk) {
+            param.worker.postMessage(chunk)
+        }
+    }))
+    param.worker.on('message', async (data) => {
+        await writer.write(data)
+    })
     return createRPCProxy(helper.apiInvoke)
 }
