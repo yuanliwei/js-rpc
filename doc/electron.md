@@ -50,7 +50,7 @@ import { ipcRenderer } from 'electron/renderer'
 // 监听来自渲染进程的消息
 window.onmessage = (/** @type {MessageEvent} */ event) => {
     // 验证消息来源并转发给主进程
-    if (event.origin == location.origin && event.data != 'port') {
+    if (event.isTrusted && event.data == 'port') {
         ipcRenderer.postMessage('port', null, [event.ports[0]])
     }
 }

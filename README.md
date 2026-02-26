@@ -338,7 +338,7 @@ ipcMain.on('port', (event) => {
 import { ipcRenderer } from 'electron/renderer'
 
 window.onmessage = (/** @type {MessageEvent} */ event) => {
-    if (event.origin == location.origin && event.data != 'port') {
+    if (event.isTrusted && event.data == 'port') {
         ipcRenderer.postMessage('port', null, [event.ports[0]])
     }
 }
