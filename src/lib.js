@@ -660,7 +660,7 @@ export function createRpcClientHelper(param) {
  * url:string;
  * rpcKey:string;
  * signal:AbortSignal;
- * intercept?:(e:Event)=>void;
+ * intercept?:(e:CloseEvent)=>void;
  * }} param
  */
 export function createRpcClientWebSocket(param) {
