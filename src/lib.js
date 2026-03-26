@@ -696,13 +696,13 @@ export function createRpcClientWebSocket(param) {
             signal.resolve()
         })
         ws.addEventListener('error', (e) => {
-            if (param.intercept) {
-                param.intercept(e)
-            }
             console.error('createRpcClientWebSocket createWebSocket ws error', e)
             promise.resolve()
         })
-        ws.addEventListener('close', () => {
+        ws.addEventListener('close', (e) => {
+            if (param.intercept) {
+                param.intercept(e)
+            }
             console.error('createRpcClientWebSocket createWebSocket ws close')
             promise.resolve()
         })
