@@ -149,7 +149,7 @@ example()
 
 #### createRpcServerWebSocket
 
-创建 WebSocket RPC 服务器。
+创建 WebSocket RPC 服务器，自动绑定 connection 事件。
 
 ```js
 /**
@@ -157,7 +157,7 @@ example()
  * path: string; 
  * wss: WebSocketServer; 
  * rpcKey:string;
- * extension: {asyncLocalStorage:AsyncLocalStorage<IncomingMessage>;}; 
+ * extension: {asyncLocalStorage:AsyncLocalStorage<{ws:WebSocket;request:IncomingMessage;}>;}; 
  * logger?:(msg:string)=>void;
  * }} param
  */
@@ -168,8 +168,54 @@ export function createRpcServerWebSocket(param)
 - `path`: RPC 服务的路径，用于区分不同的服务
 - `wss`: WebSocketServer 实例
 - `rpcKey`: 可选的安全密钥，用于验证客户端连接
-- `extension`: 包含可远程调用函数的对象
+- `extension`: 包含可远程调用函数的对象，可提供 `asyncLocalStorage` 用于存储当前连接上下文（包含 `ws` 和 `request`）
 - `logger`: 可选的日志函数
+
+#### createRpcServerWebSocketOnConnection
+
+创建 WebSocket RPC 连接处理函数，返回一个可用于 `wss.on('connection', handler)` 的处理函数。适用于需要自定义连接绑定逻辑的场景。
+
+```js
+/**
+ * @param {{
+ * path: string; 
+ * wss: WebSocketServer; 
+ * rpcKey:string;
+ * extension: {asyncLocalStorage:AsyncLocalStorage<{ws:WebSocket;request:IncomingMessage;}>;}; 
+ * logger?:(msg:string)=>void;
+ * }} param
+ * @returns {(ws: WebSocket, request: IncomingMessage) => void}
+ */
+export function createRpcServerWebSocketOnConnection(param)
+```
+
+使用示例：
+```js
+import { createServer } from 'http'
+import { WebSocketServer } from 'ws'
+import { createRpcServerWebSocketOnConnection } from 'js-rpc2/src/server.js'
+
+const server = createServer()
+const wss = new WebSocketServer({ server })
+
+// 获取连接处理函数
+const onConnection = createRpcServerWebSocketOnConnection({
+    path: '/rpc',
+    rpcKey: 'secret-key',
+    extension: { /* your API methods */ }
+})
+
+// 自定义绑定方式
+wss.on('connection', (ws, request) => {
+    // 可以在这里添加自定义逻辑
+    console.log('New connection from:', request.socket.remoteAddress)
+    
+    // 调用 RPC 连接处理
+    onConnection(ws, request)
+})
+
+server.listen(9000)
+```
 
 ### 客户端 API
 

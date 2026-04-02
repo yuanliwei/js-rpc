@@ -4,7 +4,7 @@ import { AsyncLocalStorage } from "node:async_hooks"
 
 /**
  * @import { IncomingMessage } from "node:http"
- * @import {WebSocketServer} from 'ws'
+ * @import {WebSocket, WebSocketServer} from 'ws'
  */
 
 export { createRpcServerHelper }
@@ -14,19 +14,38 @@ export { createRpcServerHelper }
  */
 
 /**
- * @template T
  * @param {{
  * path: string; 
  * wss: WebSocketServer; 
  * rpcKey:string;
- * extension: {asyncLocalStorage:AsyncLocalStorage<IncomingMessage>;}; 
+ * extension: {asyncLocalStorage:AsyncLocalStorage<{ws:WebSocket;request:IncomingMessage;}>;}; 
  * logger?:(msg:string)=>void;
  * }} param
  */
 export function createRpcServerWebSocket(param) {
     let asyncLocalStorage = param.extension.asyncLocalStorage
     if (!asyncLocalStorage) { asyncLocalStorage = new AsyncLocalStorage() }
-    param.wss.on('connection', (ws, request) => {
+    const onconnection = createRpcServerWebSocketOnConnection(param)
+    param.wss.on('connection', onconnection)
+}
+
+/**
+ * @param {{
+ * path: string; 
+ * wss: WebSocketServer; 
+ * rpcKey:string;
+ * extension: {asyncLocalStorage:AsyncLocalStorage<{ws:WebSocket;request:IncomingMessage;}>;}; 
+ * logger?:(msg:string)=>void;
+ * }} param
+ */
+export function createRpcServerWebSocketOnConnection(param) {
+    let asyncLocalStorage = param.extension.asyncLocalStorage
+    if (!asyncLocalStorage) { asyncLocalStorage = new AsyncLocalStorage() }
+    /**
+     * @param {WebSocket} ws
+     * @param {IncomingMessage} request
+     */
+    return function (ws, request) {
         let url = request.url
         if (url != param.path) {
             return
@@ -46,7 +65,7 @@ export function createRpcServerWebSocket(param) {
             if (writer.desiredSize <= 0) {
                 ws.pause()
             }
-            asyncLocalStorage.enterWith(request)
+            asyncLocalStorage.enterWith({ ws, request })
             await writer.write(buffer)
             ws.resume()
         })
@@ -56,7 +75,7 @@ export function createRpcServerWebSocket(param) {
         ws.on('error', (error) => {
             console.error('createRpcServerWebSocket connection ws error', error)
         })
-    })
+    }
 }
 
 /**
