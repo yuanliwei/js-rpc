@@ -1,29 +1,40 @@
 {
-  "compilerOptions": {
-    "moduleResolution": "nodenext",
-    "target": "ESNext",
-    "module": "NodeNext",
-    "types": ["node"],
-    "isolatedModules": true,
-    "resolveJsonModule": true,
-    /**
+    "compilerOptions": {
+        "moduleResolution": "nodenext",
+        "target": "ESNext",
+        "module": "NodeNext",
+        "types": [
+            "node"
+        ],
+        "isolatedModules": true,
+        "resolveJsonModule": true,
+        /**
      * To have warnings / errors of the Svelte compiler at the
      * correct position, enable source maps by default.
      */
-    "sourceMap": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
-    /**
+        "sourceMap": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        /**
      * Typecheck JS in `.svelte` and `.js` files by default.
      * Disable this if you'd like to use dynamic types.
      */
-    "checkJs": true
-  },
-  /**
+        "checkJs": true,
+        "strict": true,
+        "strictNullChecks": false,
+        "noImplicitAny": false,
+        "useUnknownInCatchVariables": false,
+    },
+    /**
    * Use global.d.ts instead of compilerOptions.types
    * to avoid limiting type declarations.
    */
-  "include": ["src/**/*.d.ts", "src/**/*.js", "bin/**/*.js", "src/**/*.svelte", "*.js"]
+    "include": [
+        "src/**/*.d.ts",
+        "src/**/*.js",
+        "bin/**/*.js",
+        "src/**/*.svelte",
+        "*.js"
+    ]
 }
