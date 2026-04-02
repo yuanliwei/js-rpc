@@ -32,7 +32,6 @@ export function createRpcServerWebSocket(param) {
 /**
  * @param {{
  * path: string; 
- * wss: WebSocketServer; 
  * rpcKey:string;
  * extension: {asyncLocalStorage:AsyncLocalStorage<{ws:WebSocket;request:IncomingMessage;}>;}; 
  * logger?:(msg:string)=>void;
