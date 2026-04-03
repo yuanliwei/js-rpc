@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import { deepStrictEqual, fail, ok, strictEqual } from 'node:assert'
-import { _testCreateRpcClientHttp, createRpcClientHttp, createRpcClientWebSocket, sleep, Uint8Array_from } from './lib.js'
+import { _testCreateRpcClientHttp, createRpcClientHttp, createRpcClientWorker, createRpcClientWebSocket, sleep, Uint8Array_from } from './lib.js'
 import { createServer } from 'node:http'
 import { WebSocketServer } from 'ws'
 import Koa from 'koa'
@@ -10,6 +10,11 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { Packr } from 'msgpackr'
+import { Worker } from 'node:worker_threads'
+
+/**
+ * @import {ExtensionApi} from './test-worker.js'
+ */
 
 test('basic', async () => {
     // node --test-name-pattern="^basic$" src/lib.test.js
@@ -586,4 +591,14 @@ test('msgpackr', async () => {
     delete data['error']
     delete value['error']
     deepStrictEqual(data, value)
+})
+
+test('test-rpc-NodeJSWorker', async () => {
+    // node --test --test-name-pattern="^test-rpc-NodeJSWorker$" src/lib.test.js
+    const worker = new Worker(new URL('./test-worker.js', import.meta.url))
+    /** @type{ExtensionApi} */
+    const rpc = createRpcClientWorker({ worker: worker })
+    console.info(await rpc.hello('123'))
+    deepStrictEqual(await rpc.hello('123'), 'hello 123')
+    await worker.terminate()
 })

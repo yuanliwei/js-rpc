@@ -893,7 +893,7 @@ export function base64encode(buffer) {
     const chars = []
     for (let i = 0; i < buffer.length; i += CHUNK_SZ) {
         const chunk = buffer.subarray(i, i + CHUNK_SZ)
-        chars.push(String.fromCharCode.apply(null, chunk))
+        chars.push(String.fromCharCode.apply(null, Array.from(chunk)))
     }
     return btoa(chars.join(''))
 }
@@ -993,42 +993,29 @@ export function createRpcClientChromeExtensions(param) {
 
 /**
  * @param {{
- * parentPort: NodeJSMessagePort;
+ * parentPort: MessagePort|NodeJSMessagePort;
  * extension: Object;
  * logger?:(msg:string)=>void;
  * }} param 
  */
-export function createRpcServerNodeJSWorker(param) {
-    const port = param.parentPort
-    let helper = createRpcServerHelper({
-        rpcKey: '', extension: param.extension, async: true, logger: param.logger
-    })
-    let writer = helper.writable.getWriter()
-    port.on('message', async (data) => {
-        await writer.write(data)
-    })
-    helper.readable.pipeTo(new WritableStream({
-        async write(chunk) {
-            port.postMessage(chunk)
-        }
-    }))
+export function createRpcServerWorker(param) {
+    /** @type{any} */
+    const parentPort = param.parentPort
+    parentPort.onmessage = (/** @type {{ ports: [any]; }} */ event) => {
+        parentPort.onmessage = null
+        let [port] = event.ports
+        createRpcServerMessagePort({ port, rpcKey: '', extension: param.extension, logger: param.logger })
+    }
 }
 
 /**
  * @param {{
- * worker:NodeJSWorker;
+ * worker:Worker|NodeJSWorker;
  * }} param
  */
-export function createRpcClientNodeJSWorker(param) {
-    let helper = createRpcClientHelper({ rpcKey: '' })
-    let writer = helper.writable.getWriter()
-    helper.readable.pipeTo(new WritableStream({
-        async write(chunk) {
-            param.worker.postMessage(chunk)
-        }
-    }))
-    param.worker.on('message', async (data) => {
-        await writer.write(data)
-    })
-    return createRPCProxy(helper.apiInvoke)
+export function createRpcClientWorker(param) {
+    let channel = new MessageChannel()
+    const client = createRpcClientMessagePort({ port: channel.port1, rpcKey: '' })
+    param.worker.postMessage(channel.port2, [/** @type{any} */(channel.port2)])
+    return client
 }
