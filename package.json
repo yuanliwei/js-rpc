@@ -1,6 +1,6 @@
 {
   "name": "js-rpc2",
-  "version": "2.6.2",
+  "version": "2.7.0",
   "description": "js web websocket http rpc",
   "main": "src/lib.js",
   "type": "module",
@@ -24,10 +24,10 @@
     "rpc",
     "electron",
     "chrome",
-        "extensions",
-        "ipc",
-        "socket",
-        "named-pipe"
+    "extensions",
+    "ipc",
+    "socket",
+    "named-pipe"
   ],
   "author": "yuanliwei",
   "license": "MIT",
