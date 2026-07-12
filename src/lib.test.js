@@ -11,6 +11,7 @@ import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { Packr } from 'msgpackr'
 import { Worker } from 'node:worker_threads'
+import { createRpcServerIPC, createRpcClientIPC } from './ipc.js'
 
 /**
  * @import {ExtensionApi} from './test-worker.js'
@@ -601,4 +602,54 @@ test('test-rpc-NodeJSWorker', async () => {
     console.info(await rpc.hello('123'))
     deepStrictEqual(await rpc.hello('123'), 'hello 123')
     await worker.terminate()
+})
+
+// ==================== IPC 测试 ====================
+
+test('test-rpc-IPC-basic', async () => {
+    // node --test --test-name-pattern="^test-rpc-IPC-basic$" src/lib.test.js
+
+    const extension = {
+        hello: async function (/** @type {string} */ name) {
+            return `hello ${name}`
+        },
+        add: async function (/** @type {number} */ a, /** @type {number} */ b) {
+            return a + b
+        },
+        echo: async function (/** @type {any} */ value) {
+            return value
+        },
+        ping: async function () {
+            return { ok: true }
+        },
+    }
+
+    const server = await createRpcServerIPC({
+        name: 'test-ipc-basic',
+        rpcKey: 'test-key',
+        extension,
+    })
+
+    using client = await createRpcClientIPC('test-ipc-basic', 'test-key')
+    /** @type{typeof extension} */
+    const rpc = client.rpc
+
+    // 基本调用
+    const hello = await rpc.hello('world')
+    strictEqual(hello, 'hello world')
+
+    // 数字参数
+    const sum = await rpc.add(3, 7)
+    strictEqual(sum, 10)
+
+    // 对象参数
+    const echoed = await rpc.echo({ a: 1, b: [2, 3] })
+    deepStrictEqual(echoed, { a: 1, b: [2, 3] })
+
+    // 无参数
+    const pong = await rpc.ping()
+    strictEqual(pong.ok, true)
+
+    server.close()
+    console.info('test-rpc-IPC-basic passed')
 })

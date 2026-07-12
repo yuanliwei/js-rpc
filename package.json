@@ -24,7 +24,10 @@
     "rpc",
     "electron",
     "chrome",
-    "extensions"
+        "extensions",
+        "ipc",
+        "socket",
+        "named-pipe"
   ],
   "author": "yuanliwei",
   "license": "MIT",
