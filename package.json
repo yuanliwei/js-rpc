@@ -1,6 +1,6 @@
 {
   "name": "js-rpc2",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "description": "js web websocket http rpc",
   "main": "src/lib.js",
   "type": "module",
