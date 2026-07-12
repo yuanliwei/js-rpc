@@ -10,4 +10,6 @@ export const ExtensionApi = {
     }
 }
 
-createRpcServerWorker({ parentPort, extension: ExtensionApi, })
+if (parentPort) {
+    createRpcServerWorker({ parentPort, extension: ExtensionApi, })
+}
