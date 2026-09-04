@@ -697,6 +697,7 @@ export function createRpcClientWebSocket(param) {
         })
         ws.addEventListener('error', (e) => {
             console.error('createRpcClientWebSocket createWebSocket ws error', e)
+            helper.reject(new Error('websocket error'))
             promise.resolve()
         })
         ws.addEventListener('close', (e) => {
@@ -704,6 +705,7 @@ export function createRpcClientWebSocket(param) {
                 param.intercept(e)
             }
             console.error('createRpcClientWebSocket createWebSocket ws close')
+            helper.reject(new Error('websocket closed'))
             promise.resolve()
         })
         const listenerAC = () => { ws.close() }
